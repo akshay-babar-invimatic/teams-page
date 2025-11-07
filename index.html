@@ -50,13 +50,9 @@
         const context = await microsoftTeams.app.getContext();
         const user = context.user || {};
 
-        // Fallback for name
-        const displayName = user.displayName || user.givenName || "Unknown User";
-
         // Display user info
         document.getElementById('userInfo').innerHTML = `
           <p><span class="label">User ID:</span> ${user.id || 'N/A'}</p>
-          <p><span class="label">Name:</span> ${displayName}</p>
           <p><span class="label">Email:</span> ${user.userPrincipalName || 'N/A'}</p>
         `;
       } catch (error) {
