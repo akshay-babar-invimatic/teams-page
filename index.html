@@ -4,13 +4,60 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Welcome</title>
+  <script src="https://res.cdn.office.net/teams-js/2.12.0/js/MicrosoftTeams.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 80px; }
-    h1 { color: #464EB8; }
-    p { color: #555; }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 80px;
+      background-color: #f7f7fb;
+    }
+    h1 {
+      color: #464EB8;
+    }
+    p {
+      color: #333;
+      font-size: 16px;
+    }
+    .card {
+      background: #fff;
+      display: inline-block;
+      padding: 20px 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
   </style>
 </head>
 <body>
-  <h1>👋 Welcome to Teams App</h1>
+  <div class="card">
+    <h1>👋 Welcome to My Teams App</h1>
+    <div id="userInfo">
+      <p>Loading user info...</p>
+    </div>
+  </div>
+
+  <script>
+    (async () => {
+      try {
+        // Initialize Teams SDK
+        await microsoftTeams.app.initialize();
+
+        // Get context (user info, tenant info, etc.)
+        const context = await microsoftTeams.app.getContext();
+
+        // Show basic user details
+        const user = context.user;
+        const tenant = context.user.tenant;
+
+        document.getElementById('userInfo').innerHTML = `
+          <p><strong>Name:</strong> ${user.displayName || 'N/A'}</p>
+          <p><strong>Email:</strong> ${user.userPrincipalName || 'N/A'}</p>
+          <p><strong>Tenant ID:</strong> ${tenant?.id || 'N/A'}</p>
+        `;
+      } catch (error) {
+        document.getElementById('userInfo').innerHTML = `<p style="color:red;">Error loading user info: ${error.message}</p>`;
+      }
+    })();
+  </script>
 </body>
 </html>
