@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TheLoops Personal App </title>
+  <title>TheLoops Personal App</title>
   <script src="https://res.cdn.office.net/teams-js/2.18.0/js/MicrosoftTeams.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; margin-top: 40px; }
@@ -28,48 +28,82 @@
     const EXTENSION_NAME = "com.theloops.widgetConfig";
     const GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0/me/extensions";
 
+    console.log("[Init] Starting Teams app initialization...");
+
     microsoftTeams.app.initialize().then(async () => {
-      // Initialize auth
-      const authToken = await microsoftTeams.authentication.getAuthToken();
-      loadConfig(authToken);
+      console.log("[Init] Teams SDK initialized successfully");
+
+      try {
+        console.log("[Auth] Requesting auth token...");
+        const authToken = await microsoftTeams.authentication.getAuthToken();
+        console.log("[Auth] Auth token received:", authToken);
+
+        loadConfig(authToken);
+      } catch (authError) {
+        console.error("[Auth] Error getting auth token:", authError);
+      }
     });
 
     async function loadConfig(authToken) {
+      console.log("[Config] Loading saved configuration from Graph extension...");
       try {
         const res = await fetch(`${GRAPH_ENDPOINT}/${EXTENSION_NAME}`, {
           headers: { "Authorization": `Bearer ${authToken}` }
         });
+
+        console.log("[Config] Graph response status:", res.status);
+
         if (res.ok) {
           const data = await res.json();
+          console.log("[Config] Config data received from Graph:", data);
+
           if (data.widgetUrl) {
+            console.log("[Config] Found widgetUrl in Graph, showing iframe...");
             showIframe(data.widgetUrl);
             return;
+          } else {
+            console.log("[Config] No widgetUrl found in Graph extension, checking localStorage...");
           }
+        } else {
+          console.warn("[Config] Graph fetch failed or extension not found. Status:", res.status);
         }
       } catch (err) {
-        console.log("No saved extension or unable to load:", err);
+        console.error("[Config] Error loading extension from Graph:", err);
       }
 
-      // fallback to local storage if no extension found
+      // fallback to local storage
       const localUrl = localStorage.getItem("widgetUrl");
-      if (localUrl) showIframe(localUrl);
+      if (localUrl) {
+        console.log("[Config] Found widgetUrl in localStorage:", localUrl);
+        showIframe(localUrl);
+      } else {
+        console.log("[Config] No saved widget URL found, waiting for user input...");
+      }
     }
 
     async function saveConfig() {
       const url = document.getElementById("widgetUrl").value.trim();
+      console.log("[Save] User entered URL:", url);
+
       if (!url) {
         alert("Please enter a widget URL");
+        console.warn("[Save] No URL entered, aborting save.");
         return;
       }
 
-      const authToken = await microsoftTeams.authentication.getAuthToken();
-      const body = {
-        "@odata.type": "microsoft.graph.openTypeExtension",
-        "extensionName": EXTENSION_NAME,
-        "widgetUrl": url
-      };
-
       try {
+        console.log("[Save] Requesting auth token to save config...");
+        const authToken = await microsoftTeams.authentication.getAuthToken();
+        console.log("[Save] Auth token received for save:", authToken);
+
+        const body = {
+          "@odata.type": "microsoft.graph.openTypeExtension",
+          "extensionName": EXTENSION_NAME,
+          "widgetUrl": url
+        };
+
+        console.log("[Save] Sending POST request to Graph to save extension:", body);
+
         const res = await fetch(GRAPH_ENDPOINT, {
           method: "POST",
           headers: {
@@ -79,12 +113,16 @@
           body: JSON.stringify(body)
         });
 
+        console.log("[Save] Graph POST response status:", res.status);
+
         if (res.ok || res.status === 201) {
+          console.log("[Save] Extension saved successfully. Updating localStorage and showing iframe...");
           localStorage.setItem("widgetUrl", url);
           showIframe(url);
         } else if (res.status === 409) {
-          // Extension already exists → update
-          await fetch(`${GRAPH_ENDPOINT}/${EXTENSION_NAME}`, {
+          console.log("[Save] Extension already exists. Sending PATCH request to update...");
+
+          const patchRes = await fetch(`${GRAPH_ENDPOINT}/${EXTENSION_NAME}`, {
             method: "PATCH",
             headers: {
               "Authorization": `Bearer ${authToken}`,
@@ -92,20 +130,34 @@
             },
             body: JSON.stringify({ "widgetUrl": url })
           });
-          localStorage.setItem("widgetUrl", url);
-          showIframe(url);
+
+          console.log("[Save] Graph PATCH response status:", patchRes.status);
+
+          if (patchRes.ok) {
+            console.log("[Save] Extension updated successfully. Updating localStorage and showing iframe...");
+            localStorage.setItem("widgetUrl", url);
+            showIframe(url);
+          } else {
+            console.error("[Save] Failed to update extension. Status:", patchRes.status);
+          }
         } else {
+          console.error("[Save] Failed to save configuration. Status:", res.status);
           alert("Failed to save configuration.");
         }
       } catch (err) {
-        console.error("Error saving extension:", err);
+        console.error("[Save] Error saving extension:", err);
       }
     }
 
     function showIframe(url) {
+      console.log("[Iframe] Loading iframe with URL:", url);
       document.getElementById("config-section").style.display = "none";
       document.getElementById("iframe-section").style.display = "block";
-      document.getElementById("widgetFrame").src = url;
+      const iframe = document.getElementById("widgetFrame");
+      iframe.src = url;
+
+      iframe.onload = () => console.log("[Iframe] Iframe loaded successfully:", iframe.src);
+      iframe.onerror = (e) => console.error("[Iframe] Iframe load error:", e);
     }
   </script>
 </body>
