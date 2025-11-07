@@ -3,65 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome</title>
-  <script src="https://res.cdn.office.net/teams-js/2.12.0/js/MicrosoftTeams.min.js"></script>
+  <title>TheLoops Widget</title>
+  <script src="https://res.cdn.office.net/teams-js/2.18.0/js/MicrosoftTeams.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 80px;
-      background-color: #f7f7fb;
-    }
-    h1 {
-      color: #464EB8;
-    }
-    p {
-      color: #333;
-      font-size: 16px;
-    }
-    .card {
-      background: #fff;
-      display: inline-block;
-      padding: 20px 30px;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    .label {
-      color: #666;
-      font-weight: bold;
-    }
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 40px; }
+    input, button { padding: 8px; margin: 5px; border-radius: 8px; border: 1px solid #ccc; }
+    iframe { width: 90%; height: 600px; border: none; border-radius: 12px; margin-top: 20px; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>👋 Welcome to My Teams App</h1>
-    <div id="userInfo">
-      <p>Loading user info...</p>
-    </div>
+  <h2>🔧 TheLoops Personal App</h2>
+  <div id="config-section">
+    <p>Enter your widget URL:</p>
+    <input id="widgetUrl" type="text" placeholder="https://widget.concept.theloops.ai/..." size="50">
+    <button onclick="saveConfig()">Save & Load</button>
+  </div>
+  <div id="iframe-section" style="display:none;">
+    <iframe id="widgetFrame"></iframe>
   </div>
 
   <script>
-    (async () => {
-      try {
-        // Initialize Teams SDK
-        await microsoftTeams.app.initialize();
+    microsoftTeams.app.initialize();
 
-        // Get context (includes user info)
-        const context = await microsoftTeams.app.getContext();
-        const user = context.user || {};
+    // Try loading saved URL
+    const savedUrl = localStorage.getItem("widgetUrl");
+    if (savedUrl) {
+      showIframe(savedUrl);
+    }
 
-        console.log(context);
-        
-        // Display user info
-        document.getElementById('userInfo').innerHTML = `
-          <p><span class="label">User ID:</span> ${user.id || 'N/A'}</p>
-          <p><span class="label">Email:</span> ${user.userPrincipalName || 'N/A'}</p>
-        `;
-      } catch (error) {
-        document.getElementById('userInfo').innerHTML = 
-          `<p style="color:red;">Error loading user info: ${error.message}</p>`;
+    function saveConfig() {
+      const url = document.getElementById("widgetUrl").value.trim();
+      if (!url) {
+        alert("Please enter a widget URL");
+        return;
       }
-    })();
+      localStorage.setItem("widgetUrl", url);
+      showIframe(url);
+    }
+
+    function showIframe(url) {
+      document.getElementById("config-section").style.display = "none";
+      document.getElementById("iframe-section").style.display = "block";
+      document.getElementById("widgetFrame").src = url;
+    }
   </script>
 </body>
 </html>
