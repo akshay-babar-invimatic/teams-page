@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TheLoops Widget</title>
+  <title>TheLoops Personal App</title>
   <script src="https://res.cdn.office.net/teams-js/2.18.0/js/MicrosoftTeams.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; margin-top: 40px; }
@@ -12,33 +12,94 @@
   </style>
 </head>
 <body>
-  <h2>🔧 TheLoops Personal App </h2>
+  <h2>🔧 TheLoops Personal App</h2>
+
   <div id="config-section">
     <p>Enter your widget URL:</p>
     <input id="widgetUrl" type="text" placeholder="https://widget.concept.theloops.ai/..." size="50">
     <button onclick="saveConfig()">Save & Load</button>
   </div>
+
   <div id="iframe-section" style="display:none;">
     <iframe id="widgetFrame"></iframe>
   </div>
 
   <script>
-    microsoftTeams.app.initialize();
+    const EXTENSION_NAME = "com.theloops.widgetConfig";
+    const GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0/me/extensions";
 
-    // Try loading saved URL
-    const savedUrl = localStorage.getItem("widgetUrl");
-    if (savedUrl) {
-      showIframe(savedUrl);
+    microsoftTeams.app.initialize().then(async () => {
+      // Initialize auth
+      const authToken = await microsoftTeams.authentication.getAuthToken();
+      loadConfig(authToken);
+    });
+
+    async function loadConfig(authToken) {
+      try {
+        const res = await fetch(`${GRAPH_ENDPOINT}/${EXTENSION_NAME}`, {
+          headers: { "Authorization": `Bearer ${authToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.widgetUrl) {
+            showIframe(data.widgetUrl);
+            return;
+          }
+        }
+      } catch (err) {
+        console.log("No saved extension or unable to load:", err);
+      }
+
+      // fallback to local storage if no extension found
+      const localUrl = localStorage.getItem("widgetUrl");
+      if (localUrl) showIframe(localUrl);
     }
 
-    function saveConfig() {
+    async function saveConfig() {
       const url = document.getElementById("widgetUrl").value.trim();
       if (!url) {
         alert("Please enter a widget URL");
         return;
       }
-      localStorage.setItem("widgetUrl", url);
-      showIframe(url);
+
+      const authToken = await microsoftTeams.authentication.getAuthToken();
+      const body = {
+        "@odata.type": "microsoft.graph.openTypeExtension",
+        "extensionName": EXTENSION_NAME,
+        "widgetUrl": url
+      };
+
+      try {
+        const res = await fetch(GRAPH_ENDPOINT, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${authToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (res.ok || res.status === 201) {
+          localStorage.setItem("widgetUrl", url);
+          showIframe(url);
+        } else if (res.status === 409) {
+          // Extension already exists → update
+          await fetch(`${GRAPH_ENDPOINT}/${EXTENSION_NAME}`, {
+            method: "PATCH",
+            headers: {
+              "Authorization": `Bearer ${authToken}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ "widgetUrl": url })
+          });
+          localStorage.setItem("widgetUrl", url);
+          showIframe(url);
+        } else {
+          alert("Failed to save configuration.");
+        }
+      } catch (err) {
+        console.error("Error saving extension:", err);
+      }
     }
 
     function showIframe(url) {
