@@ -26,6 +26,10 @@
       border-radius: 10px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
+    .label {
+      color: #666;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -42,20 +46,22 @@
         // Initialize Teams SDK
         await microsoftTeams.app.initialize();
 
-        // Get context (user info, tenant info, etc.)
+        // Get context (includes user info)
         const context = await microsoftTeams.app.getContext();
+        const user = context.user || {};
 
-        // Show basic user details
-        const user = context.user;
-        const tenant = context.user.tenant;
+        // Fallback for name
+        const displayName = user.displayName || user.givenName || "Unknown User";
 
+        // Display user info
         document.getElementById('userInfo').innerHTML = `
-          <p><strong>Name:</strong> ${user.displayName || 'N/A'}</p>
-          <p><strong>Email:</strong> ${user.userPrincipalName || 'N/A'}</p>
-          <p><strong>Tenant ID:</strong> ${tenant?.id || 'N/A'}</p>
+          <p><span class="label">User ID:</span> ${user.id || 'N/A'}</p>
+          <p><span class="label">Name:</span> ${displayName}</p>
+          <p><span class="label">Email:</span> ${user.userPrincipalName || 'N/A'}</p>
         `;
       } catch (error) {
-        document.getElementById('userInfo').innerHTML = `<p style="color:red;">Error loading user info: ${error.message}</p>`;
+        document.getElementById('userInfo').innerHTML = 
+          `<p style="color:red;">Error loading user info: ${error.message}</p>`;
       }
     })();
   </script>
