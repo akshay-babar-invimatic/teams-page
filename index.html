@@ -50,6 +50,8 @@
         const context = await microsoftTeams.app.getContext();
         const user = context.user || {};
 
+        console.log(context);
+        
         // Display user info
         document.getElementById('userInfo').innerHTML = `
           <p><span class="label">User ID:</span> ${user.id || 'N/A'}</p>
