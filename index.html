@@ -1,87 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Teams Personal App - Token Demo (SSO)</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        text-align: center;
-        padding: 60px;
-        background-color: #f9f9f9;
-      }
-      h2 {
-        color: #464775;
-      }
-      #tokenBox {
-        margin-top: 20px;
-        padding: 15px;
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-        max-width: 600px;
-        margin-left: auto;
-        margin-right: auto;
-        word-break: break-all;
-      }
-      #status {
-        margin-top: 15px;
-        font-weight: bold;
-      }
-      button {
-        background-color: #464775;
-        color: white;
-        padding: 10px 20px;
-        font-size: 16px;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-      }
-      button:hover {
-        background-color: #5a5bb5;
-      }
-    </style>
-  </head>
-  <body>
-    <h2>Teams Personal App - Token Demo (SSO)</h2>
-    <p>This app demonstrates Microsoft Teams SSO — no login popup required!</p>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teams Personal App - SSO Token Demo</title>
+</head>
+<body style="font-family: Arial; text-align:center; padding:50px;">
+  <h2>Teams Personal App SSO Token Generator</h2>
+  <p id="message">Initializing Teams SDK...</p>
+  <button id="getTokenBtn" disabled>Get SSO Token (Silent)</button>
+  
+  <div style="margin-top: 20px; text-align: left; width: 80%; margin-left: auto; margin-right: auto;">
+      <p><strong>SSO Token:</strong></p>
+      <textarea id="tokenDisplay" rows="10" style="width: 100%; border: 1px solid #ccc; padding: 10px; font-family: monospace;"></textarea>
+      <p id="status"></p>
+  </div>
 
-    <button id="getTokenBtn">Get SSO Token</button>
-    <div id="status"></div>
-    <div id="tokenBox"></div>
+  <script src="https://statics.teams.cdn.office.net/sdk/v2.11.0/js/MicrosoftTeams.min.js"></script>
+  <script>
+    // Ensure the entire application object is imported for V2 compatibility
+    const teams = microsoftTeams;
 
-    <!-- Load Microsoft Teams SDK -->
-    <script src="https://res.cdn.office.net/teams-js/2.18.0/js/MicrosoftTeams.min.js"></script>
+    teams.app.initialize().then(() => {
+        document.getElementById("message").innerText = "Teams SDK initialized. Ready for SSO.";
+        document.getElementById("getTokenBtn").disabled = false;
+        
+        // Optional: Attempt to get the token immediately after initialization
+        // This makes the experience even more seamless (no button click needed)
+        // You might want to remove the button if you do this.
+        getToken();
+    }).catch(error => {
+        document.getElementById("message").innerText = "Error initializing Teams SDK.";
+        console.error("Teams SDK Init Error:", error);
+    });
 
-    <script>
-      const statusEl = document.getElementById("status");
-      const tokenBox = document.getElementById("tokenBox");
+    document.getElementById("getTokenBtn").onclick = getToken;
 
-      // Initialize Teams app
-      microsoftTeams.app.initialize().then(() => {
-        console.log("✅ Teams SDK initialized.");
+    /**
+     * Attempts to get the SSO token silently from Teams.
+     */
+    async function getToken() {
+      document.getElementById("status").innerText = "Attempting to get token via Teams SSO...";
+      document.getElementById("tokenDisplay").value = "";
+      
+      try {
+        // The getAuthToken function silently retrieves the ID token/SSO token.
+        // It will only show a consent dialog if the user needs to grant consent for the first time.
+        const ssoToken = await teams.authentication.getAuthToken();
 
-        document.getElementById("getTokenBtn").onclick = () => {
-          statusEl.innerText = "Requesting token from Teams SSO...";
-          tokenBox.innerText = "";
+        console.log("✅ Teams SSO Token (ID Token):", ssoToken);
+        document.getElementById("status").innerText = "✅ Token generated silently!";
+        document.getElementById("tokenDisplay").value = ssoToken;
+        
+        // --- BONUS: Decode the user info from the token for console output ---
+        const tokenParts = ssoToken.split('.');
+        if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            console.log("Decoded Token Payload (User Info):", payload);
+            console.log(`User Name (Name Claim): ${payload.name}`);
+            console.log(`User Principal Name (UPN): ${payload.preferred_username}`);
+            console.log(`Tenant ID (TID): ${payload.tid}`);
+        }
+        // -------------------------------------------------------------------
 
-          microsoftTeams.authentication.getAuthToken({
-            successCallback: (token) => {
-              console.log("🎟️ Teams SSO Token:", token);
-              statusEl.innerText = "✅ Token successfully retrieved!";
-              tokenBox.innerText = token;
-            },
-            failureCallback: (error) => {
-              console.error("❌ Error fetching token:", error);
-              statusEl.innerText = "❌ Failed to retrieve token: " + error;
-            }
-          });
-        };
-      }).catch((err) => {
-        console.error("Teams SDK init failed:", err);
-        statusEl.innerText = "⚠️ Teams SDK initialization failed.";
-      });
-    </script>
-  </body>
+      } catch (error) {
+        console.error("Teams SSO Error:", error);
+        
+        let displayError = "❌ Error. SSO Failed.";
+        
+        if (error.errorCode === teams.app.Error.AUTH_FAILED_TO_GET_TOKEN) {
+             // This is the most common error in a new app, often means consent is needed
+             displayError += " The user may need to grant consent or the Azure AD config is missing 'Expose an API' setup.";
+        }
+        
+        document.getElementById("status").innerText = displayError;
+        document.getElementById("tokenDisplay").value = `Error: ${error.message || JSON.stringify(error)}`;
+      }
+    }
+  </script>
+</body>
 </html>
