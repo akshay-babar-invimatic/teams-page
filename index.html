@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - Widget Demo</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teams Personal App Widget</title>
   <style>
     body { font-family: Arial; text-align:center; padding:50px; }
     iframe { width: 80%; height: 400px; margin-top: 20px; border: 1px solid #ccc; }
@@ -15,20 +15,19 @@
   <h2>Teams Personal App Widget</h2>
 
   <div id="loginDiv">
-    <button id="loginBtn">Login with Microsoft</button>
+    <p>Enter widget URL and click Save to login and store:</p>
+    <input type="text" id="widgetUrl" placeholder="Enter widget URL" />
+    <button id="saveBtn">Save & Login</button>
     <p id="status"></p>
   </div>
 
   <div id="widgetDiv" style="display:none;">
-    <input type="text" id="widgetUrl" placeholder="Enter widget URL" />
-    <button id="saveUrlBtn">Save/Update URL</button>
-    <p id="widgetStatus"></p>
     <iframe id="widgetFrame" src=""></iframe>
   </div>
 
+  <!-- MSAL.js -->
   <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
   <script>
-    // --- MSAL config ---
     const msalConfig = {
       auth: {
         clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40",
@@ -42,55 +41,32 @@
     };
 
     const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email"] };
+    const loginRequest = { scopes: ["User.Read"] };
+    const metadataId = "com.myapp.userdata";
 
-    // --- Encryption helper ---
-    const encryptionKey = "my-secret-key-32chars!"; // 32 chars for AES-256
-    async function encryptData(data) {
-      const enc = new TextEncoder();
-      const encoded = enc.encode(data);
-      const key = await crypto.subtle.importKey(
-        "raw", enc.encode(encryptionKey), "AES-GCM", false, ["encrypt"]
-      );
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
-      return { iv: Array.from(iv), data: Array.from(new Uint8Array(encrypted)) };
-    }
-
-    async function decryptData(encObj) {
-      const enc = new TextEncoder();
-      const dec = new TextDecoder();
-      const key = await crypto.subtle.importKey(
-        "raw", enc.encode(encryptionKey), "AES-GCM", false, ["decrypt"]
-      );
-      const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: new Uint8Array(encObj.iv) },
-        key,
-        new Uint8Array(encObj.data)
-      );
-      return dec.decode(decrypted);
-    }
-
-    // --- Graph API helpers ---
-    async function storeUserData(metadataId, data) {
-      const graphToken = await getGraphToken();
+    async function storeUserData(data) {
+      const token = await getGraphToken();
       return fetch(`https://graph.microsoft.com/v1.0/me/extensions/${metadataId}`, {
         method: "PATCH",
         headers: {
-          "Authorization": `Bearer ${graphToken}`,
+          "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify(data)
       });
     }
 
-    async function getUserData(metadataId) {
-      const graphToken = await getGraphToken();
-      const res = await fetch(`https://graph.microsoft.com/v1.0/me/extensions/${metadataId}`, {
-        headers: { "Authorization": `Bearer ${graphToken}` }
-      });
-      if (!res.ok) return null;
-      return res.json();
+    async function getUserData() {
+      try {
+        const token = await getGraphToken();
+        const res = await fetch(`https://graph.microsoft.com/v1.0/me/extensions/${metadataId}`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (!res.ok) return null;
+        return res.json();
+      } catch (e) {
+        return null;
+      }
     }
 
     async function getGraphToken() {
@@ -99,47 +75,43 @@
       return tokenResponse.accessToken;
     }
 
-    // --- App logic ---
-    const metadataId = "com.myapp.userdata";
-
     async function initApp() {
       const accounts = msalInstance.getAllAccounts();
       if (accounts.length > 0) {
         document.getElementById("loginDiv").style.display = "none";
         document.getElementById("widgetDiv").style.display = "block";
 
-        // Fetch stored data
-        const stored = await getUserData(metadataId);
-        if (stored && stored.widgetUrlEnc) {
-          const decryptedUrl = await decryptData(stored.widgetUrlEnc);
-          document.getElementById("widgetUrl").value = decryptedUrl;
-          document.getElementById("widgetFrame").src = decryptedUrl;
+        // Fetch stored URL
+        const stored = await getUserData();
+        if (stored && stored.widgetUrl) {
+          document.getElementById("widgetFrame").src = stored.widgetUrl;
         }
       }
     }
 
-    document.getElementById("loginBtn").onclick = async () => {
+    document.getElementById("saveBtn").onclick = async () => {
+      const url = document.getElementById("widgetUrl").value.trim();
+      if (!url) {
+        alert("Please enter a URL");
+        return;
+      }
+
       document.getElementById("status").innerText = "Logging in...";
       try {
+        // Login to MSAL
         await msalInstance.loginPopup(loginRequest);
+
+        // Store URL in metadata
+        await storeUserData({ widgetUrl: url });
+
+        document.getElementById("status").innerText = "✅ Saved and logged in!";
         document.getElementById("loginDiv").style.display = "none";
         document.getElementById("widgetDiv").style.display = "block";
-        document.getElementById("status").innerText = "";
-        await initApp();
+        document.getElementById("widgetFrame").src = url;
       } catch (err) {
         console.error(err);
-        document.getElementById("status").innerText = "Login failed. See console.";
+        document.getElementById("status").innerText = "❌ Login failed. See console.";
       }
-    };
-
-    document.getElementById("saveUrlBtn").onclick = async () => {
-      const url = document.getElementById("widgetUrl").value.trim();
-      if (!url) return;
-
-      const encryptedUrl = await encryptData(url);
-      await storeUserData(metadataId, { widgetUrlEnc: encryptedUrl });
-      document.getElementById("widgetFrame").src = url;
-      document.getElementById("widgetStatus").innerText = "✅ URL saved and rendered!";
     };
 
     initApp();
