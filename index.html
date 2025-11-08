@@ -43,7 +43,7 @@
     };
 
     const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email"] };
+    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email", "User.ReadWrite"] };
 
     document.getElementById("saveBtn").onclick = async () => {
       const widgetUrl = document.getElementById("widgetUrl").value.trim();
