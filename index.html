@@ -55,10 +55,32 @@
     // -------------------- SINGLE BUTTON FLOW --------------------
     document.getElementById("actionBtn").onclick = async () => {
       document.getElementById("status").innerText = "Processing...";
+      
+      // -------------------- CHECK LOCAL STORAGE --------------------
+      let savedUrl = localStorage.getItem("savedUrl");
+      if (savedUrl) {
+        console.log("URL found in localStorage. Skipping token generation.");
+        renderUrl(savedUrl, "localStorage");
+        document.getElementById("status").innerText = "✅ URL rendered from localStorage. Token skipped.";
+        return;
+      }
+
+      // -------------------- URL NOT FOUND → ASK USER --------------------
+      const inputUrl = document.getElementById("userUrl").value.trim();
+      if (!inputUrl) {
+        alert("Please enter a URL to render.");
+        return;
+      }
+      try {
+        new URL(inputUrl); // validate URL
+      } catch {
+        alert("Invalid URL format.");
+        return;
+      }
 
       // -------------------- LOGIN & TOKEN --------------------
       try {
-        console.log("Button clicked: Starting login flow...");
+        console.log("No saved URL, starting login flow...");
         const loginResponse = await msalInstance.loginPopup(loginRequest);
         console.log("Login successful:", loginResponse);
 
@@ -92,27 +114,8 @@
         }
       }
 
-      // -------------------- URL CHECK & RENDER --------------------
-      console.log("Checking for URL in localStorage...");
-      let savedUrl = localStorage.getItem("savedUrl");
-
-      if (savedUrl) {
-        console.log("Found URL in localStorage.");
-        renderUrl(savedUrl, "localStorage");
-      } else {
-        console.log("No URL found in localStorage. Prompting user...");
-        const inputUrl = document.getElementById("userUrl").value.trim();
-        if (!inputUrl) {
-          alert("Please enter a URL to render.");
-          return;
-        }
-        try {
-          new URL(inputUrl); // validate URL
-          renderUrl(inputUrl, "user input");
-        } catch {
-          alert("Invalid URL format.");
-        }
-      }
+      // -------------------- RENDER USER INPUT URL --------------------
+      renderUrl(inputUrl, "user input after login");
     };
 
     // -------------------- AUTO-RENDER ON PAGE LOAD IF URL EXISTS --------------------
