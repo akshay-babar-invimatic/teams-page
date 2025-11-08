@@ -1,52 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - Token Demo</title>
-</head>
-<body style="font-family: Arial; text-align:center; padding:50px;">
-  <h2>Teams Personal App Token Generator</h2>
-  <button id="loginBtn">Login with Microsoft</button>
-  <p id="status"></p>
-
-  <!-- Load MSAL.js -->
-  <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
-  <script>
-    const msalConfig = {
-      auth: {
-        clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40",
-        authority: "https://login.microsoftonline.com/common",
-        redirectUri: "https://akshay-babar-invimatic.github.io/teams-page/"
-      },
-      cache: {
-        cacheLocation: "sessionStorage",
-        storeAuthStateInCookie: false
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teams Personal App - Token Demo (SSO)</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 60px;
+        background-color: #f9f9f9;
       }
-    };
-
-    const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email"] };
-
-    document.getElementById("loginBtn").onclick = async () => {
-      document.getElementById("status").innerText = "Logging in...";
-      try {
-        const loginResponse = await msalInstance.loginPopup(loginRequest);
-        console.log("Login successful:", loginResponse);
-
-        const account = msalInstance.getAllAccounts()[0];
-        const tokenResponse = await msalInstance.acquireTokenSilent({
-          ...loginRequest,
-          account
-        });
-
-        console.log("Access Token:", tokenResponse.accessToken);
-        document.getElementById("status").innerText = "✅ Token generated! Check console.";
-      } catch (error) {
-        console.error("Login error:", error);
-        document.getElementById("status").innerText = "❌ Error generating token (see console).";
+      h2 {
+        color: #464775;
       }
-    };
-  </script>
-</body>
+      #tokenBox {
+        margin-top: 20px;
+        padding: 15px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        word-break: break-all;
+      }
+      #status {
+        margin-top: 15px;
+        font-weight: bold;
+      }
+      button {
+        background-color: #464775;
+        color: white;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #5a5bb5;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Teams Personal App - Token Demo (SSO)</h2>
+    <p>This app demonstrates Microsoft Teams SSO — no login popup required!</p>
+
+    <button id="getTokenBtn">Get SSO Token</button>
+    <div id="status"></div>
+    <div id="tokenBox"></div>
+
+    <!-- Load Microsoft Teams SDK -->
+    <script src="https://res.cdn.office.net/teams-js/2.18.0/js/MicrosoftTeams.min.js"></script>
+
+    <script>
+      const statusEl = document.getElementById("status");
+      const tokenBox = document.getElementById("tokenBox");
+
+      // Initialize Teams app
+      microsoftTeams.app.initialize().then(() => {
+        console.log("✅ Teams SDK initialized.");
+
+        document.getElementById("getTokenBtn").onclick = () => {
+          statusEl.innerText = "Requesting token from Teams SSO...";
+          tokenBox.innerText = "";
+
+          microsoftTeams.authentication.getAuthToken({
+            successCallback: (token) => {
+              console.log("🎟️ Teams SSO Token:", token);
+              statusEl.innerText = "✅ Token successfully retrieved!";
+              tokenBox.innerText = token;
+            },
+            failureCallback: (error) => {
+              console.error("❌ Error fetching token:", error);
+              statusEl.innerText = "❌ Failed to retrieve token: " + error;
+            }
+          });
+        };
+      }).catch((err) => {
+        console.error("Teams SDK init failed:", err);
+        statusEl.innerText = "⚠️ Teams SDK initialization failed.";
+      });
+    </script>
+  </body>
 </html>
