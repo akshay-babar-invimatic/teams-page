@@ -6,35 +6,48 @@
   <title>Teams Personal App - Token Demo</title>
 </head>
 <body style="font-family: Arial; text-align:center; padding:50px;">
-  <h2>Teams Personal App Token Generator </h2>
+  <h2>Teams Personal App Token Generator12</h2>
   <button id="loginBtn">Login with Microsoft</button>
   <p id="status"></p>
 
   <!-- Load MSAL.js -->
   <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
   <script>
+    // MSAL configuration
     const msalConfig = {
       auth: {
-        clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40",
-        authority: "https://login.microsoftonline.com/common",
-        redirectUri: "https://akshay-babar-invimatic.github.io/teams-page/"
+        clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40", // Your app's client ID
+        authority: "https://login.microsoftonline.com/common", // Common for multi-tenant
+        redirectUri: "https://akshay-babar-invimatic.github.io/teams-page/" // Must match app registration
       },
       cache: {
-        cacheLocation: "sessionStorage",
+        cacheLocation: "sessionStorage", // Store token in sessionStorage
         storeAuthStateInCookie: false
       }
     };
 
+    // Create MSAL instance
     const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const loginRequest = { scopes: ["User.ReadWrite", "openid", "profile", "email"] };
 
+    // Scopes to request
+    const loginRequest = { 
+      scopes: ["User.ReadWrite", "openid", "profile", "email"],
+      prompt: "consent" // Forces consent screen
+    };
+
+    // Login button click
     document.getElementById("loginBtn").onclick = async () => {
       document.getElementById("status").innerText = "Logging in...";
       try {
+        // Trigger login popup
         const loginResponse = await msalInstance.loginPopup(loginRequest);
         console.log("Login successful:", loginResponse);
 
+        // Get logged-in account
         const account = msalInstance.getAllAccounts()[0];
+        if (!account) throw new Error("No account found after login.");
+
+        // Acquire token silently
         const tokenResponse = await msalInstance.acquireTokenSilent({
           ...loginRequest,
           account
@@ -42,9 +55,23 @@
 
         console.log("Access Token:", tokenResponse.accessToken);
         document.getElementById("status").innerText = "✅ Token generated! Check console.";
+
       } catch (error) {
         console.error("Login error:", error);
-        document.getElementById("status").innerText = "❌ Error generating token (see console).";
+
+        // Handle consent/admin-required error
+        if (error.errorCode === "consent_required" || error.errorCode === "interaction_required") {
+          try {
+            const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
+            console.log("Access Token (after popup):", tokenResponse.accessToken);
+            document.getElementById("status").innerText = "✅ Token generated after consent! Check console.";
+          } catch (popupError) {
+            console.error("Popup login error:", popupError);
+            document.getElementById("status").innerText = "❌ Error generating token (see console).";
+          }
+        } else {
+          document.getElementById("status").innerText = "❌ Error generating token (see console).";
+        }
       }
     };
   </script>
