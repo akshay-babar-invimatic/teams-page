@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal</title>
+  <title>Teams Personal App - Token & URL Renderer</title>
 </head>
 <body style="font-family: Arial; text-align:center; padding:50px;">
-  <h2>Teams Personal</h2>
+  <h2>Teams Personal App Token & URL Renderer</h2>
 
   <!-- Single button -->
   <button id="actionBtn">Login & Render URL</button>
@@ -40,11 +40,11 @@
 
     const msalInstance = new msal.PublicClientApplication(msalConfig);
     const loginRequest = { 
-      scopes: ["User.ReadWrite", "openid", "profile", "email"],
+      scopes: ["User.ReadWrite", "openid", "profile", "email", "User.ReadWrite.All"],
       prompt: "consent"
     };
 
-    // -------------------- URL RENDERING --------------------
+    // -------------------- UTILITY --------------------
     function renderUrl(url, source) {
       console.log(`Rendering URL: ${url} (source: ${source})`);
       document.getElementById("userIframe").src = url;
@@ -52,10 +52,59 @@
       document.getElementById("userUrl").value = url;
     }
 
+    async function fetchUserExtension(token) {
+      console.log("Checking for widgetConfig extension...");
+      try {
+        const response = await fetch("https://graph.microsoft.com/v1.0/me/extensions/widgetConfig", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.status === 404) {
+          console.log("widgetConfig extension not found.");
+          return null;
+        }
+        const data = await response.json();
+        console.log("widgetConfig extension found:", data);
+        return data;
+      } catch (err) {
+        console.error("Error fetching user extension:", err);
+        return null;
+      }
+    }
+
+    async function createUserExtension(token, url) {
+      console.log("Creating widgetConfig extension...");
+      try {
+        const response = await fetch("https://graph.microsoft.com/v1.0/me/extensions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ "@odata.type": "microsoft.graph.openTypeExtension", extensionName: "widgetConfig", url })
+        });
+        const data = await response.json();
+        console.log("widgetConfig extension created:", data);
+      } catch (err) {
+        console.error("Error creating user extension:", err);
+      }
+    }
+
+    async function updateUserExtension(token, url) {
+      console.log("Updating widgetConfig extension...");
+      try {
+        const response = await fetch("https://graph.microsoft.com/v1.0/me/extensions/widgetConfig", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ url })
+        });
+        const data = await response.json();
+        console.log("widgetConfig extension updated:", data);
+      } catch (err) {
+        console.error("Error updating user extension:", err);
+      }
+    }
+
     // -------------------- SINGLE BUTTON FLOW --------------------
     document.getElementById("actionBtn").onclick = async () => {
       document.getElementById("status").innerText = "Processing...";
-      
+
       // -------------------- CHECK LOCAL STORAGE --------------------
       let savedUrl = localStorage.getItem("savedUrl");
       if (savedUrl) {
@@ -65,20 +114,8 @@
         return;
       }
 
-      // -------------------- URL NOT FOUND → ASK USER --------------------
-      const inputUrl = document.getElementById("userUrl").value.trim();
-      if (!inputUrl) {
-        alert("Please enter a URL to render.");
-        return;
-      }
-      try {
-        new URL(inputUrl); // validate URL
-      } catch {
-        alert("Invalid URL format.");
-        return;
-      }
-
       // -------------------- LOGIN & TOKEN --------------------
+      let accessToken = "";
       try {
         console.log("No saved URL, starting login flow...");
         const loginResponse = await msalInstance.loginPopup(loginRequest);
@@ -87,13 +124,10 @@
         const account = msalInstance.getAllAccounts()[0];
         if (!account) throw new Error("No account found after login.");
 
-        const tokenResponse = await msalInstance.acquireTokenSilent({
-          ...loginRequest,
-          account
-        });
-
-        console.log("Access Token:", tokenResponse.accessToken);
-        document.getElementById("status").innerText = "✅ Token generated! Rendering URL next...";
+        const tokenResponse = await msalInstance.acquireTokenSilent({ ...loginRequest, account });
+        accessToken = tokenResponse.accessToken;
+        console.log("Access Token:", accessToken);
+        document.getElementById("status").innerText = "✅ Token generated! Checking extensions next...";
 
       } catch (error) {
         console.error("Login error:", error);
@@ -101,21 +135,52 @@
           console.log("Silent token failed, requesting token via popup...");
           try {
             const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
-            console.log("Access Token (after popup):", tokenResponse.accessToken);
-            document.getElementById("status").innerText = "✅ Token generated after consent! Rendering URL next...";
+            accessToken = tokenResponse.accessToken;
+            console.log("Access Token (after popup):", accessToken);
+            document.getElementById("status").innerText = "✅ Token generated after consent! Checking extensions next...";
           } catch (popupError) {
             console.error("Popup login error:", popupError);
             document.getElementById("status").innerText = "❌ Error generating token (see console).";
-            return; // stop further flow if token fails
+            return;
           }
         } else {
           document.getElementById("status").innerText = "❌ Error generating token (see console).";
-          return; // stop further flow if token fails
+          return;
         }
       }
 
-      // -------------------- RENDER USER INPUT URL --------------------
-      renderUrl(inputUrl, "user input after login");
+      // -------------------- CHECK USER EXTENSION --------------------
+      const extensionData = await fetchUserExtension(accessToken);
+
+      if (extensionData && extensionData.url) {
+        console.log("URL found in user extension. Rendering and saving to localStorage.");
+        renderUrl(extensionData.url, "user extension");
+      } else {
+        console.log("URL not found in user extension. Asking user input...");
+        const inputUrl = document.getElementById("userUrl").value.trim();
+        if (!inputUrl) {
+          alert("Please enter a URL to render.");
+          return;
+        }
+        try {
+          new URL(inputUrl);
+        } catch {
+          alert("Invalid URL format.");
+          return;
+        }
+
+        // -------------------- CREATE OR PATCH EXTENSION --------------------
+        if (!extensionData) {
+          await createUserExtension(accessToken, inputUrl);
+        } else {
+          await updateUserExtension(accessToken, inputUrl);
+        }
+
+        // Render the user-provided URL
+        renderUrl(inputUrl, "user input after login");
+      }
+
+      document.getElementById("status").innerText = "✅ URL rendered successfully!";
     };
 
     // -------------------- AUTO-RENDER ON PAGE LOAD IF URL EXISTS --------------------
