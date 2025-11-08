@@ -1,31 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teams Personal App Widget</title>
-  <style>
-    body { font-family: Arial; text-align:center; padding:50px; }
-    iframe { width: 80%; height: 400px; margin-top: 20px; border: 1px solid #ccc; }
-    input { width: 300px; padding: 5px; margin-top: 10px; }
-    button { padding: 8px 15px; margin-left: 5px; }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teams Personal App - Token Demo</title>
 </head>
-<body>
-  <h2>Teams Personal App Widget</h2>
+<body style="font-family: Arial; text-align:center; padding:50px;">
+  <h2>Teams Personal App Token Generator</h2>
 
-  <div id="loginDiv">
-    <p>Enter widget URL and click Save to login and store:</p>
-    <input type="text" id="widgetUrl" placeholder="Enter widget URL" />
-    <button id="saveBtn">Save & Login</button>
-    <p id="status"></p>
-  </div>
+  <!-- Widget URL input -->
+  <input type="text" id="widgetUrl" placeholder="Enter widget URL" style="width:300px; padding:5px;" />
+  <button id="saveBtn">Save & Generate Token</button>
 
-  <div id="widgetDiv" style="display:none;">
-    <iframe id="widgetFrame" src=""></iframe>
-  </div>
+  <p id="status"></p>
 
-  <!-- MSAL.js -->
+  <!-- Load MSAL.js -->
   <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
   <script>
     const msalConfig = {
@@ -41,80 +30,38 @@
     };
 
     const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const loginRequest = { scopes: ["User.Read"] };
-    const metadataId = "com.myapp.userdata";
-
-    async function storeUserData(data) {
-      const token = await getGraphToken();
-      return fetch(`https://graph.microsoft.com/v1.0/me/extensions/${metadataId}`, {
-        method: "PATCH",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data)
-      });
-    }
-
-    async function getUserData() {
-      try {
-        const token = await getGraphToken();
-        const res = await fetch(`https://graph.microsoft.com/v1.0/me/extensions/${metadataId}`, {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        if (!res.ok) return null;
-        return res.json();
-      } catch (e) {
-        return null;
-      }
-    }
-
-    async function getGraphToken() {
-      const account = msalInstance.getAllAccounts()[0];
-      const tokenResponse = await msalInstance.acquireTokenSilent({ ...loginRequest, account });
-      return tokenResponse.accessToken;
-    }
-
-    async function initApp() {
-      const accounts = msalInstance.getAllAccounts();
-      if (accounts.length > 0) {
-        document.getElementById("loginDiv").style.display = "none";
-        document.getElementById("widgetDiv").style.display = "block";
-
-        // Fetch stored URL
-        const stored = await getUserData();
-        if (stored && stored.widgetUrl) {
-          document.getElementById("widgetFrame").src = stored.widgetUrl;
-        }
-      }
-    }
+    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email"] };
 
     document.getElementById("saveBtn").onclick = async () => {
-      const url = document.getElementById("widgetUrl").value.trim();
-      if (!url) {
-        alert("Please enter a URL");
+      const widgetUrl = document.getElementById("widgetUrl").value.trim();
+      if (!widgetUrl) {
+        alert("Please enter a widget URL");
         return;
       }
 
-      document.getElementById("status").innerText = "Logging in...";
+      document.getElementById("status").innerText = "Logging in and generating token...";
       try {
-        // Login to MSAL
-        await msalInstance.loginPopup(loginRequest);
+        // 1️⃣ Login user via popup
+        const loginResponse = await msalInstance.loginPopup(loginRequest);
+        console.log("Login successful:", loginResponse);
 
-        // Store URL in metadata
-        await storeUserData({ widgetUrl: url });
+        // 2️⃣ Get access token silently
+        const account = msalInstance.getAllAccounts()[0];
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          ...loginRequest,
+          account
+        });
 
-        document.getElementById("status").innerText = "✅ Saved and logged in!";
-        document.getElementById("loginDiv").style.display = "none";
-        document.getElementById("widgetDiv").style.display = "block";
-        document.getElementById("widgetFrame").src = url;
-      } catch (err) {
-        console.error(err);
-        document.getElementById("status").innerText = "❌ Login failed. See console.";
+        // 3️⃣ Log access token + widget URL
+        console.log("Widget URL:", widgetUrl);
+        console.log("Access Token:", tokenResponse.accessToken);
+
+        document.getElementById("status").innerText = "✅ Token generated! Check console for URL and token.";
+      } catch (error) {
+        console.error("Login error:", error);
+        document.getElementById("status").innerText = "❌ Error generating token (see console).";
       }
     };
-
-    initApp();
   </script>
 </body>
 </html>
