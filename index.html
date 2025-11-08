@@ -3,33 +3,50 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - Get Token</title>
-  <script src="https://res.cdn.office.net/teams-js/2.18.0/js/MicrosoftTeams.min.js"></script>
+  <title>Teams Personal App - Token Demo</title>
 </head>
 <body style="font-family: Arial; text-align:center; padding:50px;">
-  <h2>Teams Personal App  Token Test</h2>
-  <p id="status">Initializing...</p>
+  <h2>Teams Personal App Token Generator</h2>
+  <button id="loginBtn">Login with Microsoft</button>
+  <p id="status"></p>
 
+  <!-- Load MSAL.js -->
+  <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
   <script>
-    // Step 1: Initialize Teams SDK
-    microsoftTeams.app.initialize().then(() => {
-      console.log("✅ Teams SDK initialized");
-      document.getElementById("status").innerText = "Getting token...";
+    const msalConfig = {
+      auth: {
+        clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40",
+        authority: "https://login.microsoftonline.com/common",
+        redirectUri: "https://akshay-babar-invimatic.github.io/teams-page/"
+      },
+      cache: {
+        cacheLocation: "sessionStorage",
+        storeAuthStateInCookie: false
+      }
+    };
 
-      // Step 2: Request authentication token (SSO)
-      microsoftTeams.authentication.getAuthToken({
-        resources: ["api://akshay-babar-invimatic.github.io/f06fbb6a-9b84-4371-ae9b-9e18c37e8d40"],
-        successCallback: (token) => {
-          console.log("🔑 Token acquired successfully!");
-          console.log("Access Token:", token);
-          document.getElementById("status").innerText = "Token printed in console.";
-        },
-        failureCallback: (error) => {
-          console.error("❌ Failed to get token:", error);
-          document.getElementById("status").innerText = "Failed to get token.";
-        }
-      });
-    });
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email"] };
+
+    document.getElementById("loginBtn").onclick = async () => {
+      document.getElementById("status").innerText = "Logging in...";
+      try {
+        const loginResponse = await msalInstance.loginPopup(loginRequest);
+        console.log("Login successful:", loginResponse);
+
+        const account = msalInstance.getAllAccounts()[0];
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          ...loginRequest,
+          account
+        });
+
+        console.log("Access Token:", tokenResponse.accessToken);
+        document.getElementById("status").innerText = "✅ Token generated! Check console.";
+      } catch (error) {
+        console.error("Login error:", error);
+        document.getElementById("status").innerText = "❌ Error generating token (see console).";
+      }
+    };
   </script>
 </body>
 </html>
