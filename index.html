@@ -6,7 +6,7 @@
   <title>Teams Personal App - Token & URL Renderer</title>
 </head>
 <body style="font-family: Arial; text-align:center; padding:50px;">
-  <h2>Teams Personal App Token</h2>
+  <h2>Teams Personal App Token & URL Renderer</h2>
 
   <!-- Single button -->
   <button id="actionBtn">Login & Render URL</button>
@@ -25,7 +25,6 @@
   <!-- Load MSAL.js -->
   <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
   <script>
-    // -------------------- MSAL CONFIG --------------------
     const msalConfig = {
       auth: {
         clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40",
@@ -45,10 +44,16 @@
     };
 
     // -------------------- UTILITY --------------------
-    function renderUrl(url, source) {
+    function renderUrl(url, source, teamsUserId) {
       console.log(`Rendering URL: ${url} (source: ${source})`);
-      document.getElementById("userIframe").src = url;
-      localStorage.setItem("savedUrl", url);
+      let finalUrl = url;
+      if (teamsUserId) {
+        const separator = url.includes('?') ? '&' : '?';
+        finalUrl = `${url}${separator}teamsUserId=${encodeURIComponent(teamsUserId)}`;
+        console.log("Appending teamsUserId to URL:", finalUrl);
+      }
+      document.getElementById("userIframe").src = finalUrl;
+      localStorage.setItem("savedUrl", url); // store original URL only
       document.getElementById("userUrl").value = url;
     }
 
@@ -107,9 +112,14 @@
 
       // -------------------- CHECK LOCAL STORAGE --------------------
       let savedUrl = localStorage.getItem("savedUrl");
+      let teamsUserId = null;
+
       if (savedUrl) {
         console.log("URL found in localStorage. Skipping token generation.");
-        renderUrl(savedUrl, "localStorage");
+        // Still get Teams user id from MSAL account if needed for query param
+        const account = msalInstance.getAllAccounts()[0];
+        if (account) teamsUserId = account.localAccountId;
+        renderUrl(savedUrl, "localStorage", teamsUserId);
         document.getElementById("status").innerText = "✅ URL rendered from localStorage. Token skipped.";
         return;
       }
@@ -123,6 +133,7 @@
 
         const account = msalInstance.getAllAccounts()[0];
         if (!account) throw new Error("No account found after login.");
+        teamsUserId = account.localAccountId; // Save Teams user id
 
         const tokenResponse = await msalInstance.acquireTokenSilent({ ...loginRequest, account });
         accessToken = tokenResponse.accessToken;
@@ -136,6 +147,7 @@
           try {
             const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
             accessToken = tokenResponse.accessToken;
+            teamsUserId = msalInstance.getAllAccounts()[0].localAccountId;
             console.log("Access Token (after popup):", accessToken);
             document.getElementById("status").innerText = "✅ Token generated after consent! Checking extensions next...";
           } catch (popupError) {
@@ -154,7 +166,7 @@
 
       if (extensionData && extensionData.url) {
         console.log("URL found in user extension. Rendering and saving to localStorage.");
-        renderUrl(extensionData.url, "user extension");
+        renderUrl(extensionData.url, "user extension", teamsUserId);
       } else {
         console.log("URL not found in user extension. Asking user input...");
         const inputUrl = document.getElementById("userUrl").value.trim();
@@ -169,15 +181,13 @@
           return;
         }
 
-        // -------------------- CREATE OR PATCH EXTENSION --------------------
         if (!extensionData) {
           await createUserExtension(accessToken, inputUrl);
         } else {
           await updateUserExtension(accessToken, inputUrl);
         }
 
-        // Render the user-provided URL
-        renderUrl(inputUrl, "user input after login");
+        renderUrl(inputUrl, "user input after login", teamsUserId);
       }
 
       document.getElementById("status").innerText = "✅ URL rendered successfully!";
@@ -186,9 +196,12 @@
     // -------------------- AUTO-RENDER ON PAGE LOAD IF URL EXISTS --------------------
     window.addEventListener("DOMContentLoaded", () => {
       const savedUrl = localStorage.getItem("savedUrl");
+      const account = msalInstance.getAllAccounts()[0];
+      const teamsUserId = account ? account.localAccountId : null;
+
       if (savedUrl) {
         console.log("Page loaded: Auto-rendering URL from localStorage.");
-        renderUrl(savedUrl, "localStorage (page load)");
+        renderUrl(savedUrl, "localStorage (page load)", teamsUserId);
       } else {
         console.log("Page loaded: No saved URL yet.");
       }
