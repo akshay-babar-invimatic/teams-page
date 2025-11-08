@@ -18,6 +18,7 @@
 
       // Step 2: Request authentication token (SSO)
       microsoftTeams.authentication.getAuthToken({
+        resources: ["https://graph.microsoft.com"],
         successCallback: (token) => {
           console.log("🔑 Token acquired successfully!");
           console.log("Access Token:", token);
