@@ -6,9 +6,22 @@
   <title>Teams Personal App - Token Demo</title>
 </head>
 <body style="font-family: Arial; text-align:center; padding:50px;">
-  <h2>Teams Personal App Token Generator12111</h2>
+  <h2>Teams Personal App Token Generator</h2>
+
+  <!-- Token generation section -->
   <button id="loginBtn">Login with Microsoft</button>
   <p id="status"></p>
+
+  <!-- User URL input section -->
+  <div style="margin-top:30px;">
+    <input type="text" id="userUrl" placeholder="Enter URL to display" style="width:300px; padding:5px;" />
+    <button id="renderBtn">Render URL</button>
+  </div>
+
+  <!-- Iframe container -->
+  <div style="margin-top:20px;">
+    <iframe id="userIframe" style="width:80%; height:400px; border:1px solid #ccc;"></iframe>
+  </div>
 
   <!-- Load MSAL.js -->
   <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
@@ -16,38 +29,34 @@
     // MSAL configuration
     const msalConfig = {
       auth: {
-        clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40", // Your app's client ID
-        authority: "https://login.microsoftonline.com/common", // Common for multi-tenant
-        redirectUri: "https://akshay-babar-invimatic.github.io/teams-page/" // Must match app registration
+        clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40",
+        authority: "https://login.microsoftonline.com/common",
+        redirectUri: "https://akshay-babar-invimatic.github.io/teams-page/"
       },
       cache: {
-        cacheLocation: "sessionStorage", // Store token in sessionStorage
+        cacheLocation: "sessionStorage",
         storeAuthStateInCookie: false
       }
     };
 
-    // Create MSAL instance
     const msalInstance = new msal.PublicClientApplication(msalConfig);
 
     // Scopes to request
     const loginRequest = { 
       scopes: ["User.ReadWrite", "openid", "profile", "email"],
-      prompt: "consent" // Forces consent screen
+      prompt: "consent"
     };
 
-    // Login button click
+    // MSAL login flow
     document.getElementById("loginBtn").onclick = async () => {
       document.getElementById("status").innerText = "Logging in...";
       try {
-        // Trigger login popup
         const loginResponse = await msalInstance.loginPopup(loginRequest);
         console.log("Login successful:", loginResponse);
 
-        // Get logged-in account
         const account = msalInstance.getAllAccounts()[0];
         if (!account) throw new Error("No account found after login.");
 
-        // Acquire token silently
         const tokenResponse = await msalInstance.acquireTokenSilent({
           ...loginRequest,
           account
@@ -58,8 +67,6 @@
 
       } catch (error) {
         console.error("Login error:", error);
-
-        // Handle consent/admin-required error
         if (error.errorCode === "consent_required" || error.errorCode === "interaction_required") {
           try {
             const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
@@ -72,6 +79,23 @@
         } else {
           document.getElementById("status").innerText = "❌ Error generating token (see console).";
         }
+      }
+    };
+
+    // Render user-provided URL in iframe
+    document.getElementById("renderBtn").onclick = () => {
+      const url = document.getElementById("userUrl").value.trim();
+      if (!url) {
+        alert("Please enter a valid URL");
+        return;
+      }
+
+      // Simple validation to ensure it’s a valid URL
+      try {
+        new URL(url); // Throws if invalid
+        document.getElementById("userIframe").src = url;
+      } catch {
+        alert("Invalid URL format");
       }
     };
   </script>
