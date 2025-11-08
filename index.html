@@ -82,22 +82,37 @@
       }
     };
 
-    // Render user-provided URL in iframe
+    // Function to render URL in iframe and save in localStorage
+    function renderUrl(url) {
+      document.getElementById("userIframe").src = url;
+      localStorage.setItem("savedUrl", url);
+      document.getElementById("userUrl").value = url;
+    }
+
+    // Render button click
     document.getElementById("renderBtn").onclick = () => {
       const url = document.getElementById("userUrl").value.trim();
       if (!url) {
         alert("Please enter a valid URL");
         return;
       }
-
-      // Simple validation to ensure it’s a valid URL
       try {
-        new URL(url); // Throws if invalid
-        document.getElementById("userIframe").src = url;
+        new URL(url); // validate URL
+        renderUrl(url);
       } catch {
         alert("Invalid URL format");
       }
     };
+
+    // On page load, check localStorage for saved URL
+    window.addEventListener("DOMContentLoaded", () => {
+      const savedUrl = localStorage.getItem("savedUrl");
+      if (savedUrl) {
+        renderUrl(savedUrl);
+      } else {
+        console.log("No URL saved yet. Please enter one.");
+      }
+    });
   </script>
 </body>
 </html>
