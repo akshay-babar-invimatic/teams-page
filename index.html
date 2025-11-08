@@ -6,19 +6,18 @@
   <title>Teams Personal App - Token Demo</title>
 </head>
 <body style="font-family: Arial; text-align:center; padding:50px;">
-  <h2>Teams Personal App Token Generator</h2>
+  <h2>Teams Personal App Token & URL Renderer</h2>
 
-  <!-- Token generation section -->
-  <button id="loginBtn">Login with Microsoft</button>
+  <!-- Single button -->
+  <button id="actionBtn">Login & Render URL</button>
   <p id="status"></p>
 
-  <!-- User URL input section -->
-  <div style="margin-top:30px;">
+  <!-- URL input field (optional if URL not stored) -->
+  <div style="margin-top:20px;">
     <input type="text" id="userUrl" placeholder="Enter URL to display" style="width:300px; padding:5px;" />
-    <button id="renderBtn">Render URL</button>
   </div>
 
-  <!-- Iframe container -->
+  <!-- Iframe -->
   <div style="margin-top:20px;">
     <iframe id="userIframe" style="width:80%; height:400px; border:1px solid #ccc;"></iframe>
   </div>
@@ -45,11 +44,21 @@
       prompt: "consent"
     };
 
-    // -------------------- MSAL LOGIN FLOW --------------------
-    document.getElementById("loginBtn").onclick = async () => {
-      console.log("Login button clicked");
-      document.getElementById("status").innerText = "Logging in...";
+    // -------------------- URL RENDERING --------------------
+    function renderUrl(url, source) {
+      console.log(`Rendering URL: ${url} (source: ${source})`);
+      document.getElementById("userIframe").src = url;
+      localStorage.setItem("savedUrl", url);
+      document.getElementById("userUrl").value = url;
+    }
+
+    // -------------------- SINGLE BUTTON FLOW --------------------
+    document.getElementById("actionBtn").onclick = async () => {
+      document.getElementById("status").innerText = "Processing...";
+
+      // -------------------- LOGIN & TOKEN --------------------
       try {
+        console.log("Button clicked: Starting login flow...");
         const loginResponse = await msalInstance.loginPopup(loginRequest);
         console.log("Login successful:", loginResponse);
 
@@ -62,7 +71,7 @@
         });
 
         console.log("Access Token:", tokenResponse.accessToken);
-        document.getElementById("status").innerText = "✅ Token generated! Check console.";
+        document.getElementById("status").innerText = "✅ Token generated! Rendering URL next...";
 
       } catch (error) {
         console.error("Login error:", error);
@@ -71,48 +80,49 @@
           try {
             const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
             console.log("Access Token (after popup):", tokenResponse.accessToken);
-            document.getElementById("status").innerText = "✅ Token generated after consent! Check console.";
+            document.getElementById("status").innerText = "✅ Token generated after consent! Rendering URL next...";
           } catch (popupError) {
             console.error("Popup login error:", popupError);
             document.getElementById("status").innerText = "❌ Error generating token (see console).";
+            return; // stop further flow if token fails
           }
         } else {
           document.getElementById("status").innerText = "❌ Error generating token (see console).";
+          return; // stop further flow if token fails
+        }
+      }
+
+      // -------------------- URL CHECK & RENDER --------------------
+      console.log("Checking for URL in localStorage...");
+      let savedUrl = localStorage.getItem("savedUrl");
+
+      if (savedUrl) {
+        console.log("Found URL in localStorage.");
+        renderUrl(savedUrl, "localStorage");
+      } else {
+        console.log("No URL found in localStorage. Prompting user...");
+        const inputUrl = document.getElementById("userUrl").value.trim();
+        if (!inputUrl) {
+          alert("Please enter a URL to render.");
+          return;
+        }
+        try {
+          new URL(inputUrl); // validate URL
+          renderUrl(inputUrl, "user input");
+        } catch {
+          alert("Invalid URL format.");
         }
       }
     };
 
-    // -------------------- URL RENDERING --------------------
-    function renderUrl(url, source) {
-      console.log(`Rendering URL: ${url} (source: ${source})`);
-      document.getElementById("userIframe").src = url;
-      localStorage.setItem("savedUrl", url);
-      document.getElementById("userUrl").value = url;
-    }
-
-    document.getElementById("renderBtn").onclick = () => {
-      const url = document.getElementById("userUrl").value.trim();
-      if (!url) {
-        alert("Please enter a valid URL");
-        return;
-      }
-      try {
-        new URL(url); // validate URL
-        renderUrl(url, "user input");
-      } catch {
-        alert("Invalid URL format");
-      }
-    };
-
-    // -------------------- ON PAGE LOAD --------------------
+    // -------------------- AUTO-RENDER ON PAGE LOAD IF URL EXISTS --------------------
     window.addEventListener("DOMContentLoaded", () => {
-      console.log("Page loaded, checking localStorage for saved URL...");
       const savedUrl = localStorage.getItem("savedUrl");
       if (savedUrl) {
-        console.log("Found saved URL in localStorage");
-        renderUrl(savedUrl, "localStorage");
+        console.log("Page loaded: Auto-rendering URL from localStorage.");
+        renderUrl(savedUrl, "localStorage (page load)");
       } else {
-        console.log("No URL saved yet. Please enter one.");
+        console.log("Page loaded: No saved URL yet.");
       }
     });
   </script>
