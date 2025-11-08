@@ -8,7 +8,14 @@
     body { font-family: Arial; text-align:center; padding:50px; }
     input { width: 300px; padding: 5px; margin-top: 10px; }
     button { padding: 8px 15px; margin-left: 5px; }
-    iframe { width: 80%; height: 400px; margin-top: 20px; border: 1px solid #ccc; display: none; }
+    iframe { 
+      width: 80%; 
+      height: 400px; 
+      margin-top: 20px; 
+      border: 1px solid #ccc; 
+      display: none; 
+      overflow: auto; /* enable scrolling */
+    }
   </style>
 </head>
 <body>
@@ -18,7 +25,7 @@
   <p id="status"></p>
 
   <!-- Iframe to render the URL -->
-  <iframe id="widgetFrame"></iframe>
+  <iframe id="widgetFrame" scrolling="yes"></iframe>
 
   <script>
     document.getElementById("saveBtn").onclick = () => {
