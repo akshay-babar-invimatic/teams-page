@@ -43,7 +43,11 @@
     };
 
     const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email", "User.ReadWrite"] };
+
+    // ✅ Request write permissions and offline access
+    const loginRequest = { 
+      scopes: ["User.ReadWrite", "openid", "profile", "email", "offline_access"] 
+    };
 
     document.getElementById("saveBtn").onclick = async () => {
       const widgetUrl = document.getElementById("widgetUrl").value.trim();
@@ -55,16 +59,26 @@
       document.getElementById("status").innerText = "Logging in and generating token...";
 
       try {
-        // 1️⃣ Login user via MSAL popup
-        const loginResponse = await msalInstance.loginPopup(loginRequest);
+        // 1️⃣ Login user via MSAL popup with consent prompt
+        const loginResponse = await msalInstance.loginPopup({
+          ...loginRequest,
+          prompt: "consent" // Forces user to consent for write access
+        });
         console.log("Login successful:", loginResponse);
 
         // 2️⃣ Acquire access token silently
         const account = msalInstance.getAllAccounts()[0];
-        const tokenResponse = await msalInstance.acquireTokenSilent({
-          ...loginRequest,
-          account
-        });
+        let tokenResponse;
+        try {
+          tokenResponse = await msalInstance.acquireTokenSilent({
+            ...loginRequest,
+            account
+          });
+        } catch (silentError) {
+          // Fallback to popup if silent fails
+          console.warn("Silent token acquisition failed, falling back to popup:", silentError);
+          tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
+        }
 
         console.log("Access Token:", tokenResponse.accessToken);
         console.log("Widget URL:", widgetUrl);
