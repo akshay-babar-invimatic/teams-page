@@ -9,12 +9,13 @@
   <h2>Teams Personal App Token & URL Renderer</h2>
 
   <!-- Single button -->
-  <button id="actionBtn">Login & Render URL</button>
+  <button id="actionBtn">Render URL</button>
   <p id="status"></p>
 
-  <!-- URL input field (optional if URL not stored) -->
+  <!-- URL input field -->
   <div style="margin-top:20px;">
     <input type="text" id="userUrl" placeholder="Enter URL to display" style="width:300px; padding:5px;" />
+    <button id="updateUrlBtn">Update URL</button>
   </div>
 
   <!-- Iframe -->
@@ -106,26 +107,25 @@
       }
     }
 
-    // -------------------- SINGLE BUTTON FLOW --------------------
+    // -------------------- SINGLE BUTTON LOGIN & RENDER FLOW --------------------
     document.getElementById("actionBtn").onclick = async () => {
-      document.getElementById("status").innerText = "Processing...";
-
-      // -------------------- CHECK LOCAL STORAGE --------------------
-      let savedUrl = localStorage.getItem("savedUrl");
+      const statusEl = document.getElementById("status");
+      statusEl.innerText = "Processing...";
       let teamsUserId = null;
+      let accessToken = "";
 
+      // Check if URL exists in localStorage
+      const savedUrl = localStorage.getItem("savedUrl");
       if (savedUrl) {
-        console.log("URL found in localStorage. Skipping token generation.");
-        // Still get Teams user id from MSAL account if needed for query param
+        console.log("URL exists in localStorage. Skipping token generation.");
         const account = msalInstance.getAllAccounts()[0];
         if (account) teamsUserId = account.localAccountId;
         renderUrl(savedUrl, "localStorage", teamsUserId);
-        document.getElementById("status").innerText = "✅ URL rendered from localStorage. Token skipped.";
+        statusEl.innerText = "✅ URL rendered from localStorage. Token skipped.";
         return;
       }
 
-      // -------------------- LOGIN & TOKEN --------------------
-      let accessToken = "";
+      // -------------------- LOGIN & TOKEN FLOW --------------------
       try {
         console.log("No saved URL, starting login flow...");
         const loginResponse = await msalInstance.loginPopup(loginRequest);
@@ -133,77 +133,86 @@
 
         const account = msalInstance.getAllAccounts()[0];
         if (!account) throw new Error("No account found after login.");
-        teamsUserId = account.localAccountId; // Save Teams user id
+        teamsUserId = account.localAccountId;
 
         const tokenResponse = await msalInstance.acquireTokenSilent({ ...loginRequest, account });
         accessToken = tokenResponse.accessToken;
         console.log("Access Token:", accessToken);
-        document.getElementById("status").innerText = "✅ Token generated! Checking extensions next...";
-
+        statusEl.innerText = "✅ Token generated! Checking extensions next...";
       } catch (error) {
         console.error("Login error:", error);
         if (error.errorCode === "consent_required" || error.errorCode === "interaction_required") {
-          console.log("Silent token failed, requesting token via popup...");
+          console.log("Silent token failed, requesting via popup...");
           try {
             const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
             accessToken = tokenResponse.accessToken;
             teamsUserId = msalInstance.getAllAccounts()[0].localAccountId;
-            console.log("Access Token (after popup):", accessToken);
-            document.getElementById("status").innerText = "✅ Token generated after consent! Checking extensions next...";
+            console.log("Access Token (popup):", accessToken);
+            statusEl.innerText = "✅ Token generated after consent! Checking extensions...";
           } catch (popupError) {
             console.error("Popup login error:", popupError);
-            document.getElementById("status").innerText = "❌ Error generating token (see console).";
+            statusEl.innerText = "❌ Error generating token (see console).";
             return;
           }
         } else {
-          document.getElementById("status").innerText = "❌ Error generating token (see console).";
+          statusEl.innerText = "❌ Error generating token (see console).";
           return;
         }
       }
 
       // -------------------- CHECK USER EXTENSION --------------------
-      const extensionData = await fetchUserExtension(accessToken);
+      let extensionData = await fetchUserExtension(accessToken);
 
       if (extensionData && extensionData.url) {
-        console.log("URL found in user extension. Rendering and saving to localStorage.");
+        console.log("URL found in extension. Rendering and saving locally.");
         renderUrl(extensionData.url, "user extension", teamsUserId);
       } else {
-        console.log("URL not found in user extension. Asking user input...");
-        const inputUrl = document.getElementById("userUrl").value.trim();
-        if (!inputUrl) {
-          alert("Please enter a URL to render.");
-          return;
-        }
-        try {
-          new URL(inputUrl);
-        } catch {
-          alert("Invalid URL format.");
-          return;
-        }
+        console.log("URL not found in extension. Asking for input...");
+      }
+    };
 
+    // -------------------- UPDATE URL BUTTON --------------------
+    document.getElementById("updateUrlBtn").onclick = async () => {
+      const inputUrl = document.getElementById("userUrl").value.trim();
+      if (!inputUrl) {
+        alert("Please enter a URL to render.");
+        return;
+      }
+      try { new URL(inputUrl); } catch { alert("Invalid URL format."); return; }
+
+      const account = msalInstance.getAllAccounts()[0];
+      if (!account) {
+        alert("Please login first using the 'Login & Render URL' button.");
+        return;
+      }
+
+      const teamsUserId = account.localAccountId;
+      renderUrl(inputUrl, "user input update", teamsUserId);
+
+      // Patch or create extension
+      try {
+        const tokenResponse = await msalInstance.acquireTokenSilent({ ...loginRequest, account });
+        const accessToken = tokenResponse.accessToken;
+
+        const extensionData = await fetchUserExtension(accessToken);
         if (!extensionData) {
           await createUserExtension(accessToken, inputUrl);
         } else {
           await updateUserExtension(accessToken, inputUrl);
         }
-
-        renderUrl(inputUrl, "user input after login", teamsUserId);
+      } catch (err) {
+        console.error("Error updating extension after input:", err);
       }
-
-      document.getElementById("status").innerText = "✅ URL rendered successfully!";
     };
 
-    // -------------------- AUTO-RENDER ON PAGE LOAD IF URL EXISTS --------------------
+    // -------------------- AUTO-RENDER ON LOAD --------------------
     window.addEventListener("DOMContentLoaded", () => {
       const savedUrl = localStorage.getItem("savedUrl");
       const account = msalInstance.getAllAccounts()[0];
       const teamsUserId = account ? account.localAccountId : null;
-
       if (savedUrl) {
-        console.log("Page loaded: Auto-rendering URL from localStorage.");
+        console.log("Auto-rendering URL from localStorage on page load.");
         renderUrl(savedUrl, "localStorage (page load)", teamsUserId);
-      } else {
-        console.log("Page loaded: No saved URL yet.");
       }
     });
   </script>
