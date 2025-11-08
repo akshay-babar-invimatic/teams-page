@@ -26,7 +26,7 @@
   <!-- Load MSAL.js -->
   <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
   <script>
-    // MSAL configuration
+    // -------------------- MSAL CONFIG --------------------
     const msalConfig = {
       auth: {
         clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40",
@@ -40,15 +40,14 @@
     };
 
     const msalInstance = new msal.PublicClientApplication(msalConfig);
-
-    // Scopes to request
     const loginRequest = { 
       scopes: ["User.ReadWrite", "openid", "profile", "email"],
       prompt: "consent"
     };
 
-    // MSAL login flow
+    // -------------------- MSAL LOGIN FLOW --------------------
     document.getElementById("loginBtn").onclick = async () => {
+      console.log("Login button clicked");
       document.getElementById("status").innerText = "Logging in...";
       try {
         const loginResponse = await msalInstance.loginPopup(loginRequest);
@@ -68,6 +67,7 @@
       } catch (error) {
         console.error("Login error:", error);
         if (error.errorCode === "consent_required" || error.errorCode === "interaction_required") {
+          console.log("Silent token failed, requesting token via popup...");
           try {
             const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
             console.log("Access Token (after popup):", tokenResponse.accessToken);
@@ -82,14 +82,14 @@
       }
     };
 
-    // Function to render URL in iframe and save in localStorage
-    function renderUrl(url) {
+    // -------------------- URL RENDERING --------------------
+    function renderUrl(url, source) {
+      console.log(`Rendering URL: ${url} (source: ${source})`);
       document.getElementById("userIframe").src = url;
       localStorage.setItem("savedUrl", url);
       document.getElementById("userUrl").value = url;
     }
 
-    // Render button click
     document.getElementById("renderBtn").onclick = () => {
       const url = document.getElementById("userUrl").value.trim();
       if (!url) {
@@ -98,17 +98,19 @@
       }
       try {
         new URL(url); // validate URL
-        renderUrl(url);
+        renderUrl(url, "user input");
       } catch {
         alert("Invalid URL format");
       }
     };
 
-    // On page load, check localStorage for saved URL
+    // -------------------- ON PAGE LOAD --------------------
     window.addEventListener("DOMContentLoaded", () => {
+      console.log("Page loaded, checking localStorage for saved URL...");
       const savedUrl = localStorage.getItem("savedUrl");
       if (savedUrl) {
-        renderUrl(savedUrl);
+        console.log("Found saved URL in localStorage");
+        renderUrl(savedUrl, "localStorage");
       } else {
         console.log("No URL saved yet. Please enter one.");
       }
