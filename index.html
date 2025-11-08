@@ -3,80 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - SSO Token Demo</title>
+  <title>Teams Personal App - Get Token</title>
+  <script src="https://res.cdn.office.net/teams-js/2.18.0/js/MicrosoftTeams.min.js"></script>
 </head>
 <body style="font-family: Arial; text-align:center; padding:50px;">
-  <h2>Teams Personal App SSO Token Generator</h2>
-  <p id="message">Initializing Teams SDK...</p>
-  <button id="getTokenBtn" disabled>Get SSO Token (Silent)</button>
-  
-  <div style="margin-top: 20px; text-align: left; width: 80%; margin-left: auto; margin-right: auto;">
-      <p><strong>SSO Token:</strong></p>
-      <textarea id="tokenDisplay" rows="10" style="width: 100%; border: 1px solid #ccc; padding: 10px; font-family: monospace;"></textarea>
-      <p id="status"></p>
-  </div>
+  <h2>Teams Personal App - Token Test</h2>
+  <p id="status">Initializing...</p>
 
-  <script src="https://statics.teams.cdn.office.net/sdk/v2.11.0/js/MicrosoftTeams.min.js"></script>
   <script>
-    // Ensure the entire application object is imported for V2 compatibility
-    const teams = microsoftTeams;
+    // Step 1: Initialize Teams SDK
+    microsoftTeams.app.initialize().then(() => {
+      console.log("✅ Teams SDK initialized");
+      document.getElementById("status").innerText = "Getting token...";
 
-    teams.app.initialize().then(() => {
-        document.getElementById("message").innerText = "Teams SDK initialized. Ready for SSO.";
-        document.getElementById("getTokenBtn").disabled = false;
-        
-        // Optional: Attempt to get the token immediately after initialization
-        // This makes the experience even more seamless (no button click needed)
-        // You might want to remove the button if you do this.
-        getToken();
-    }).catch(error => {
-        document.getElementById("message").innerText = "Error initializing Teams SDK.";
-        console.error("Teams SDK Init Error:", error);
+      // Step 2: Request authentication token (SSO)
+      microsoftTeams.authentication.getAuthToken({
+        successCallback: (token) => {
+          console.log("🔑 Token acquired successfully!");
+          console.log("Access Token:", token);
+          document.getElementById("status").innerText = "Token printed in console.";
+        },
+        failureCallback: (error) => {
+          console.error("❌ Failed to get token:", error);
+          document.getElementById("status").innerText = "Failed to get token.";
+        }
+      });
     });
-
-    document.getElementById("getTokenBtn").onclick = getToken;
-
-    /**
-     * Attempts to get the SSO token silently from Teams.
-     */
-    async function getToken() {
-      document.getElementById("status").innerText = "Attempting to get token via Teams SSO...";
-      document.getElementById("tokenDisplay").value = "";
-      
-      try {
-        // The getAuthToken function silently retrieves the ID token/SSO token.
-        // It will only show a consent dialog if the user needs to grant consent for the first time.
-        const ssoToken = await teams.authentication.getAuthToken();
-
-        console.log("✅ Teams SSO Token (ID Token):", ssoToken);
-        document.getElementById("status").innerText = "✅ Token generated silently!";
-        document.getElementById("tokenDisplay").value = ssoToken;
-        
-        // --- BONUS: Decode the user info from the token for console output ---
-        const tokenParts = ssoToken.split('.');
-        if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            console.log("Decoded Token Payload (User Info):", payload);
-            console.log(`User Name (Name Claim): ${payload.name}`);
-            console.log(`User Principal Name (UPN): ${payload.preferred_username}`);
-            console.log(`Tenant ID (TID): ${payload.tid}`);
-        }
-        // -------------------------------------------------------------------
-
-      } catch (error) {
-        console.error("Teams SSO Error:", error);
-        
-        let displayError = "❌ Error. SSO Failed.";
-        
-        if (error.errorCode === teams.app.Error.AUTH_FAILED_TO_GET_TOKEN) {
-             // This is the most common error in a new app, often means consent is needed
-             displayError += " The user may need to grant consent or the Azure AD config is missing 'Expose an API' setup.";
-        }
-        
-        document.getElementById("status").innerText = displayError;
-        document.getElementById("tokenDisplay").value = `Error: ${error.message || JSON.stringify(error)}`;
-      }
-    }
   </script>
 </body>
 </html>
