@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - Widget + Token + Metadata</title>
+  <title>Teams Personal App - Widget + Token</title>
   <style>
     body { font-family: Arial; text-align:center; padding:50px; }
     input { width: 300px; padding: 5px; margin-top: 10px; }
@@ -19,14 +19,15 @@
   </style>
 </head>
 <body>
-  <h2>Enter Widget URL </h2>
+  <h2>Enter Widget URL</h2>
   <input type="text" id="widgetUrl" placeholder="Enter widget URL here" />
   <button id="saveBtn">Save & Generate Token</button>
   <p id="status"></p>
 
+  <!-- Iframe to render the URL -->
   <iframe id="widgetFrame" scrolling="yes"></iframe>
 
-  <!-- MSAL.js -->
+  <!-- Load MSAL.js -->
   <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
   <script>
     const msalConfig = {
@@ -42,63 +43,7 @@
     };
 
     const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email", "User.ReadWrite"] };
-    const extensionId = "com.myapp.widgetdata";
-
-    // Function to get access token
-    async function getToken() {
-      const account = msalInstance.getAllAccounts()[0];
-      return await msalInstance.acquireTokenSilent({ ...loginRequest, account });
-    }
-
-    // Function to check if extension exists
-    async function checkExtension(token) {
-      const res = await fetch(`https://graph.microsoft.com/v1.0/me/extensions/${extensionId}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      return res.ok; // true if exists
-    }
-
-    // Create the extension
-    async function createExtension(token) {
-      const res = await fetch("https://graph.microsoft.com/v1.0/me/extensions", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          "@odata.type": "microsoft.graph.openTypeExtension",
-          "extensionName": extensionId,
-          "widgetUrl": ""
-        })
-      });
-      if (res.ok) console.log("✅ Extension created");
-      else console.error("❌ Failed to create extension:", await res.text());
-      return res.ok;
-    }
-
-    // Save or update widget URL
-    async function saveWidgetUrl(token, url) {
-      // First check if extension exists
-      let exists = await checkExtension(token);
-      if (!exists) {
-        const created = await createExtension(token);
-        if (!created) return false;
-      }
-
-      // Now PATCH the widget URL
-      const res = await fetch(`https://graph.microsoft.com/v1.0/me/extensions/${extensionId}`, {
-        method: "PATCH",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ widgetUrl: url })
-      });
-
-      if (res.ok) {
-        console.log("✅ Widget URL saved in metadata:", url);
-        return true;
-      } else {
-        console.error("❌ Failed to save metadata:", await res.text());
-        return false;
-      }
-    }
+    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email"] };
 
     document.getElementById("saveBtn").onclick = async () => {
       const widgetUrl = document.getElementById("widgetUrl").value.trim();
@@ -108,29 +53,31 @@
       }
 
       document.getElementById("status").innerText = "Logging in and generating token...";
+
       try {
-        // 1️⃣ Login user
-        await msalInstance.loginPopup(loginRequest);
+        // 1️⃣ Login user via MSAL popup
+        const loginResponse = await msalInstance.loginPopup(loginRequest);
+        console.log("Login successful:", loginResponse);
 
-        // 2️⃣ Get access token
-        const tokenResponse = await getToken();
-        const accessToken = tokenResponse.accessToken;
-        console.log("Access Token:", accessToken);
+        // 2️⃣ Acquire access token silently
+        const account = msalInstance.getAllAccounts()[0];
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          ...loginRequest,
+          account
+        });
 
-        // 3️⃣ Save widget URL in metadata
-        const saved = await saveWidgetUrl(accessToken, widgetUrl);
-        document.getElementById("status").innerText = saved
-          ? "✅ Token generated and widget URL saved! Check console."
-          : "❌ Token generated but failed to save URL. Check console.";
+        console.log("Access Token:", tokenResponse.accessToken);
+        console.log("Widget URL:", widgetUrl);
 
-        // 4️⃣ Render widget in iframe
+        // 3️⃣ Render widget in iframe
         const iframe = document.getElementById("widgetFrame");
         iframe.src = widgetUrl;
         iframe.style.display = "block";
 
-      } catch (err) {
-        console.error("Login/token error:", err);
-        document.getElementById("status").innerText = "❌ Error generating token or saving URL (see console).";
+        document.getElementById("status").innerText = "✅ Token generated and widget rendered! Check console.";
+      } catch (error) {
+        console.error("Login or token error:", error);
+        document.getElementById("status").innerText = "❌ Error generating token (see console).";
       }
     };
   </script>
