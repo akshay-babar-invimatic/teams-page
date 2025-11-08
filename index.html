@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - Widget Token</title>
+  <title>Teams Personal App - Widget + Token</title>
   <style>
     body { font-family: Arial; text-align:center; padding:50px; }
     input { width: 300px; padding: 5px; margin-top: 10px; }
@@ -21,76 +21,64 @@
 <body>
   <h2>Enter Widget URL</h2>
   <input type="text" id="widgetUrl" placeholder="Enter widget URL here" />
-  <button id="saveBtn">Save & Generate Token </button>
+  <button id="saveBtn">Save & Generate Token</button>
   <p id="status"></p>
 
+  <!-- Iframe to render the URL -->
   <iframe id="widgetFrame" scrolling="yes"></iframe>
 
-  <!-- Load MSAL.js and Teams SDK -->
+  <!-- Load MSAL.js -->
   <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
-  <script src="https://res.cdn.office.net/teams-js/2.18.0/js/MicrosoftTeams.min.js"></script>
   <script>
-    const clientId = "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40";
-    const redirectUri = "https://akshay-babar-invimatic.github.io/teams-page/";
-    const graphScopes = ["User.ReadWrite", "offline_access"];
+    const msalConfig = {
+      auth: {
+        clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40",
+        authority: "https://login.microsoftonline.com/common",
+        redirectUri: "https://akshay-babar-invimatic.github.io/teams-page/"
+      },
+      cache: {
+        cacheLocation: "sessionStorage",
+        storeAuthStateInCookie: false
+      }
+    };
 
-    // MSAL config
-    const msalInstance = new msal.PublicClientApplication({
-      auth: { clientId, authority: "https://login.microsoftonline.com/common", redirectUri },
-      cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false }
-    });
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email", "User.ReadWrite"] };
 
     document.getElementById("saveBtn").onclick = async () => {
       const widgetUrl = document.getElementById("widgetUrl").value.trim();
-      if (!widgetUrl) return alert("Please enter a widget URL");
+      if (!widgetUrl) {
+        alert("Please enter a widget URL");
+        return;
+      }
 
-      document.getElementById("status").innerText = "Initializing Teams SSO...";
-      
-      // Step 1: Initialize Teams SDK and get SSO token
-      microsoftTeams.app.initialize().then(() => {
-        microsoftTeams.authentication.getAuthToken({
-          resources: [`api://${redirectUri}${clientId}`],
-          successCallback: async (ssoToken) => {
-            console.log("✅ Teams SSO token:", ssoToken);
+      document.getElementById("status").innerText = "Logging in and generating token...";
 
-            // Step 2: Exchange SSO token for Graph token using MSAL
-            try {
-              let account = msalInstance.getAllAccounts()[0];
-              let tokenResponse;
+      try {
+        // 1️⃣ Login user via MSAL popup
+        const loginResponse = await msalInstance.loginPopup(loginRequest);
+        console.log("Login successful:", loginResponse);
 
-              if (account) {
-                try {
-                  tokenResponse = await msalInstance.acquireTokenSilent({ scopes: graphScopes, account });
-                } catch (silentErr) {
-                  console.warn("Silent token failed, using popup:", silentErr);
-                  tokenResponse = await msalInstance.acquireTokenPopup({ scopes: graphScopes });
-                }
-              } else {
-                // No account, force login popup
-                await msalInstance.loginPopup({ scopes: graphScopes, prompt: "consent" });
-                account = msalInstance.getAllAccounts()[0];
-                tokenResponse = await msalInstance.acquireTokenSilent({ scopes: graphScopes, account });
-              }
-
-              console.log("✅ Graph token:", tokenResponse.accessToken);
-
-              // Step 3: Render widget
-              const iframe = document.getElementById("widgetFrame");
-              iframe.src = widgetUrl;
-              iframe.style.display = "block";
-
-              document.getElementById("status").innerText = "✅ Token generated & widget rendered!";
-            } catch (msalError) {
-              console.error("❌ Graph token error:", msalError);
-              document.getElementById("status").innerText = "❌ Error generating Graph token. Check console.";
-            }
-          },
-          failureCallback: (err) => {
-            console.error("❌ Teams SSO failed:", err);
-            document.getElementById("status").innerText = "❌ Teams SSO failed. Check console.";
-          }
+        // 2️⃣ Acquire access token silently
+        const account = msalInstance.getAllAccounts()[0];
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          ...loginRequest,
+          account
         });
-      });
+
+        console.log("Access Token:", tokenResponse.accessToken);
+        console.log("Widget URL:", widgetUrl);
+
+        // 3️⃣ Render widget in iframe
+        const iframe = document.getElementById("widgetFrame");
+        iframe.src = widgetUrl;
+        iframe.style.display = "block";
+
+        document.getElementById("status").innerText = "✅ Token generated and widget rendered! Check console.";
+      } catch (error) {
+        console.error("Login or token error:", error);
+        document.getElementById("status").innerText = "❌ Error generating token (see console).";
+      }
     };
   </script>
 </body>
