@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - Step 1</title>
+  <title>Teams Personal App - Step 2</title>
   <style>
     body { font-family: Arial; text-align:center; padding:50px; }
     input { width: 300px; padding: 5px; margin-top: 10px; }
     button { padding: 8px 15px; margin-left: 5px; }
+    iframe { width: 80%; height: 400px; margin-top: 20px; border: 1px solid #ccc; display: none; }
   </style>
 </head>
 <body>
@@ -16,6 +17,9 @@
   <button id="saveBtn">Save</button>
   <p id="status"></p>
 
+  <!-- Iframe to render the URL -->
+  <iframe id="widgetFrame"></iframe>
+
   <script>
     document.getElementById("saveBtn").onclick = () => {
       const url = document.getElementById("widgetUrl").value.trim();
@@ -23,8 +27,14 @@
         alert("Please enter a widget URL");
         return;
       }
+
       console.log("Widget URL saved:", url);
       document.getElementById("status").innerText = "✅ URL saved! Check console.";
+
+      // Render the URL in iframe
+      const iframe = document.getElementById("widgetFrame");
+      iframe.src = url;
+      iframe.style.display = "block";
     };
   </script>
 </body>
