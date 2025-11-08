@@ -1,164 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TheLoops Personal App</title>
-  <script src="https://res.cdn.office.net/teams-js/2.18.0/js/MicrosoftTeams.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 40px; }
-    input, button { padding: 8px; margin: 5px; border-radius: 8px; border: 1px solid #ccc; }
-    iframe { width: 90%; height: 600px; border: none; border-radius: 12px; margin-top: 20px; }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teams Personal App - Token Demo</title>
 </head>
-<body>
-  <h2>TheLoops Personal App</h2>
+<body style="font-family: Arial; text-align:center; padding:50px;">
+  <h2>Teams Personal App Token Generator</h2>
+  <button id="loginBtn">Login with Microsoft</button>
+  <p id="status"></p>
 
-  <div id="config-section">
-    <p>Enter your widget URL:</p>
-    <input id="widgetUrl" type="text" placeholder="https://widget.concept.theloops.ai/..." size="50">
-    <button onclick="saveConfig()">Save & Load</button>
-  </div>
-
-  <div id="iframe-section" style="display:none;">
-    <iframe id="widgetFrame"></iframe>
-  </div>
-
+  <!-- Load MSAL.js -->
+  <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
   <script>
-    const EXTENSION_NAME = "com.theloops.widgetConfig";
-    const GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0/me/extensions";
-
-    console.log("[Init] Starting Teams app initialization...");
-
-    microsoftTeams.app.initialize().then(async () => {
-      console.log("[Init] Teams SDK initialized successfully");
-
-      try {
-        console.log("[Auth] Requesting auth token...");
-        const authToken = await microsoftTeams.authentication.getAuthToken();
-        console.log("[Auth] Auth token received:", authToken);
-
-        loadConfig(authToken);
-      } catch (authError) {
-        console.error("[Auth] Error getting auth token:", authError);
+    const msalConfig = {
+      auth: {
+        clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40",
+        authority: "https://login.microsoftonline.com/common",
+        redirectUri: "https://akshay-babar-invimatic.github.io/teams-page/"
+      },
+      cache: {
+        cacheLocation: "sessionStorage",
+        storeAuthStateInCookie: false
       }
-    });
+    };
 
-    async function loadConfig(authToken) {
-      console.log("[Config] Loading saved configuration from Graph extension...");
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email"] };
+
+    document.getElementById("loginBtn").onclick = async () => {
+      document.getElementById("status").innerText = "Logging in...";
       try {
-        const res = await fetch(`${GRAPH_ENDPOINT}/${EXTENSION_NAME}`, {
-          headers: { "Authorization": `Bearer ${authToken}` }
+        const loginResponse = await msalInstance.loginPopup(loginRequest);
+        console.log("Login successful:", loginResponse);
+
+        const account = msalInstance.getAllAccounts()[0];
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          ...loginRequest,
+          account
         });
 
-        console.log("[Config] Graph response status:", res.status);
-
-        if (res.ok) {
-          const data = await res.json();
-          console.log("[Config] Config data received from Graph:", data);
-
-          if (data.widgetUrl) {
-            console.log("[Config] Found widgetUrl in Graph, showing iframe...");
-            showIframe(data.widgetUrl);
-            return;
-          } else {
-            console.log("[Config] No widgetUrl found in Graph extension, checking localStorage...");
-          }
-        } else {
-          console.warn("[Config] Graph fetch failed or extension not found. Status:", res.status);
-        }
-      } catch (err) {
-        console.error("[Config] Error loading extension from Graph:", err);
+        console.log("Access Token:", tokenResponse.accessToken);
+        document.getElementById("status").innerText = "✅ Token generated! Check console.";
+      } catch (error) {
+        console.error("Login error:", error);
+        document.getElementById("status").innerText = "❌ Error generating token (see console).";
       }
-
-      // fallback to local storage
-      const localUrl = localStorage.getItem("widgetUrl");
-      if (localUrl) {
-        console.log("[Config] Found widgetUrl in localStorage:", localUrl);
-        showIframe(localUrl);
-      } else {
-        console.log("[Config] No saved widget URL found, waiting for user input...");
-      }
-    }
-
-    async function saveConfig() {
-      const url = document.getElementById("widgetUrl").value.trim();
-      console.log("[Save] User entered URL:", url);
-
-      if (!url) {
-        alert("Please enter a widget URL");
-        console.warn("[Save] No URL entered, aborting save.");
-        return;
-      }
-
-      try {
-        console.log("[Save] Requesting auth token to save config...");
-        const authToken = await microsoftTeams.authentication.getAuthToken();
-        console.log("[Save] Auth token received for save:", authToken);
-
-        const body = {
-          "@odata.type": "microsoft.graph.openTypeExtension",
-          "extensionName": EXTENSION_NAME,
-          "widgetUrl": url
-        };
-
-        console.log("[Save] Sending POST request to Graph to save extension:", body);
-
-        const res = await fetch(GRAPH_ENDPOINT, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${authToken}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(body)
-        });
-
-        console.log("[Save] Graph POST response status:", res.status);
-
-        if (res.ok || res.status === 201) {
-          console.log("[Save] Extension saved successfully. Updating localStorage and showing iframe...");
-          localStorage.setItem("widgetUrl", url);
-          showIframe(url);
-        } else if (res.status === 409) {
-          console.log("[Save] Extension already exists. Sending PATCH request to update...");
-
-          const patchRes = await fetch(`${GRAPH_ENDPOINT}/${EXTENSION_NAME}`, {
-            method: "PATCH",
-            headers: {
-              "Authorization": `Bearer ${authToken}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ "widgetUrl": url })
-          });
-
-          console.log("[Save] Graph PATCH response status:", patchRes.status);
-
-          if (patchRes.ok) {
-            console.log("[Save] Extension updated successfully. Updating localStorage and showing iframe...");
-            localStorage.setItem("widgetUrl", url);
-            showIframe(url);
-          } else {
-            console.error("[Save] Failed to update extension. Status:", patchRes.status);
-          }
-        } else {
-          console.error("[Save] Failed to save configuration. Status:", res.status);
-          alert("Failed to save configuration.");
-        }
-      } catch (err) {
-        console.error("[Save] Error saving extension:", err);
-      }
-    }
-
-    function showIframe(url) {
-      console.log("[Iframe] Loading iframe with URL:", url);
-      document.getElementById("config-section").style.display = "none";
-      document.getElementById("iframe-section").style.display = "block";
-      const iframe = document.getElementById("widgetFrame");
-      iframe.src = url;
-
-      iframe.onload = () => console.log("[Iframe] Iframe loaded successfully:", iframe.src);
-      iframe.onerror = (e) => console.error("[Iframe] Iframe load error:", e);
-    }
+    };
   </script>
 </body>
 </html>
