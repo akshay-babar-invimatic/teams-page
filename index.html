@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - Widget + Token</title>
+  <title>Teams Personal App - Widget + Token + Metadata</title>
   <style>
     body { font-family: Arial; text-align:center; padding:50px; }
     input { width: 300px; padding: 5px; margin-top: 10px; }
@@ -44,6 +44,33 @@
 
     const msalInstance = new msal.PublicClientApplication(msalConfig);
     const loginRequest = { scopes: ["User.Read", "openid", "profile", "email"] };
+    const extensionId = "com.myapp.widgetdata"; // Unique extension ID
+
+    // Save widget URL in user extension metadata
+    async function saveWidgetInMetadata(token, url) {
+      try {
+        const response = await fetch(`https://graph.microsoft.com/v1.0/me/extensions/${extensionId}`, {
+          method: "PATCH",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ widgetUrl: url })
+        });
+
+        if (response.ok) {
+          console.log("✅ Widget URL saved in metadata:", url);
+          return true;
+        } else {
+          const errorText = await response.text();
+          console.error("❌ Failed to save metadata:", errorText);
+          return false;
+        }
+      } catch (err) {
+        console.error("❌ Error saving metadata:", err);
+        return false;
+      }
+    }
 
     document.getElementById("saveBtn").onclick = async () => {
       const widgetUrl = document.getElementById("widgetUrl").value.trim();
@@ -66,15 +93,21 @@
           account
         });
 
-        console.log("Access Token:", tokenResponse.accessToken);
+        const accessToken = tokenResponse.accessToken;
+        console.log("Access Token:", accessToken);
         console.log("Widget URL:", widgetUrl);
 
-        // 3️⃣ Render widget in iframe
+        // 3️⃣ Save widget URL in user extension metadata
+        const saved = await saveWidgetInMetadata(accessToken, widgetUrl);
+        document.getElementById("status").innerText = saved
+          ? "✅ Token generated and widget URL saved! Check console."
+          : "❌ Token generated but failed to save URL. Check console.";
+
+        // 4️⃣ Render widget in iframe
         const iframe = document.getElementById("widgetFrame");
         iframe.src = widgetUrl;
         iframe.style.display = "block";
 
-        document.getElementById("status").innerText = "✅ Token generated and widget rendered! Check console.";
       } catch (error) {
         console.error("Login or token error:", error);
         document.getElementById("status").innerText = "❌ Error generating token (see console).";
