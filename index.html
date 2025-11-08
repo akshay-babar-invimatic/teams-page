@@ -3,64 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - Token Demo</title>
+  <title>Teams Personal App - Step 1</title>
+  <style>
+    body { font-family: Arial; text-align:center; padding:50px; }
+    input { width: 300px; padding: 5px; margin-top: 10px; }
+    button { padding: 8px 15px; margin-left: 5px; }
+  </style>
 </head>
-<body style="font-family: Arial; text-align:center; padding:50px;">
-  <h2>Teams Personal App Token Generator</h2>
-
-  <!-- Widget URL input -->
-  <input type="text" id="widgetUrl" placeholder="Enter widget URL" style="width:300px; padding:5px;" />
-  <button id="saveBtn">Save & Generate Token</button>
-
+<body>
+  <h2>Enter Widget URL</h2>
+  <input type="text" id="widgetUrl" placeholder="Enter widget URL here" />
+  <button id="saveBtn">Save</button>
   <p id="status"></p>
 
-  <!-- Load MSAL.js -->
-  <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
   <script>
-    const msalConfig = {
-      auth: {
-        clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40",
-        authority: "https://login.microsoftonline.com/common",
-        redirectUri: "https://akshay-babar-invimatic.github.io/teams-page/"
-      },
-      cache: {
-        cacheLocation: "sessionStorage",
-        storeAuthStateInCookie: false
-      }
-    };
-
-    const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const loginRequest = { scopes: ["User.Read", "openid", "profile", "email"] };
-
-    document.getElementById("saveBtn").onclick = async () => {
-      const widgetUrl = document.getElementById("widgetUrl").value.trim();
-      if (!widgetUrl) {
+    document.getElementById("saveBtn").onclick = () => {
+      const url = document.getElementById("widgetUrl").value.trim();
+      if (!url) {
         alert("Please enter a widget URL");
         return;
       }
-
-      document.getElementById("status").innerText = "Logging in and generating token...";
-      try {
-        // 1️⃣ Login user via popup
-        const loginResponse = await msalInstance.loginPopup(loginRequest);
-        console.log("Login successful:", loginResponse);
-
-        // 2️⃣ Get access token silently
-        const account = msalInstance.getAllAccounts()[0];
-        const tokenResponse = await msalInstance.acquireTokenSilent({
-          ...loginRequest,
-          account
-        });
-
-        // 3️⃣ Log access token + widget URL
-        console.log("Widget URL:", widgetUrl);
-        console.log("Access Token:", tokenResponse.accessToken);
-
-        document.getElementById("status").innerText = "✅ Token generated! Check console for URL and token.";
-      } catch (error) {
-        console.error("Login error:", error);
-        document.getElementById("status").innerText = "❌ Error generating token (see console).";
-      }
+      console.log("Widget URL saved:", url);
+      document.getElementById("status").innerText = "✅ URL saved! Check console.";
     };
   </script>
 </body>
