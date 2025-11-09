@@ -3,39 +3,42 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - Token Generator</title>
+  <title>Teams Personal App - Token with Consent</title>
   <script src="https://res.cdn.office.net/teams-js/2.16.0/js/MicrosoftTeams.min.js"></script>
 </head>
 <body style="font-family: Arial; text-align:center; padding:40px;">
-  <h2>Teams Personal App Token Demo</h2>
-
-  <button id="getTokenBtn">Get Token</button>
-  <pre id="tokenOutput" style="margin-top:20px; white-space:pre-wrap;"></pre>
+  <h2>Teams Personal App - Force Consent Demo</h2>
+  <button id="consentBtn">Sign in & Get Graph Token</button>
+  <pre id="output" style="margin-top:20px; white-space:pre-wrap;"></pre>
 
   <script>
-    let accessToken = "";
+    microsoftTeams.app.initialize();
 
-    async function getToken() {
-      console.log("Initializing Teams SDK...");
-      await microsoftTeams.app.initialize();
-
-      console.log("Getting Teams context...");
-      const context = await microsoftTeams.app.getContext();
-      console.log("Teams context:", context);
-
+    document.getElementById("consentBtn").onclick = async () => {
       try {
-        console.log("Requesting SSO token...");
-        const token = await microsoftTeams.authentication.getAuthToken();
-        accessToken = token;
-        console.log("Token acquired:", token);
-        document.getElementById("tokenOutput").innerText = token;
-      } catch (error) {
-        console.error("Error getting token:", error);
-        document.getElementById("tokenOutput").innerText = "Error: " + JSON.stringify(error, null, 2);
+        // Open a popup for user login & consent
+        microsoftTeams.authentication.authenticate({
+          url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize" +
+               "?client_id=f06fbb6a-9b84-4371-ae9b-9e18c37e8d40" +
+               "&response_type=token" +
+               "&response_mode=fragment" +
+               "&redirect_uri=https://YOUR_GITHUB_PAGE_URL" +
+               "&scope=https://graph.microsoft.com/User.Read https://graph.microsoft.com/Files.ReadWrite",
+          width: 600,
+          height: 500,
+          successCallback: (result) => {
+            document.getElementById("output").innerText = "Access Token:\n" + result;
+            console.log("Access token:", result);
+          },
+          failureCallback: (err) => {
+            console.error("Auth failed:", err);
+            document.getElementById("output").innerText = "Error:\n" + JSON.stringify(err, null, 2);
+          }
+        });
+      } catch (e) {
+        console.error("Error:", e);
       }
-    }
-
-    document.getElementById("getTokenBtn").onclick = getToken;
+    };
   </script>
 </body>
 </html>
