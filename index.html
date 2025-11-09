@@ -3,129 +3,98 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - Save User URL</title>
-  <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js"></script>
-  <style>
-    body { font-family: Arial; padding: 40px; text-align: center; }
-    input { padding: 10px; width: 300px; }
-    button { padding: 10px 20px; margin-left: 10px; }
-    #url-display { margin-top: 30px; font-size: 1.2em; color: #333; }
-  </style>
+  <title>Teams Token Generator</title>
+  <script src="https://res.cdn.office.net/teams-js/2.22.0/js/MicrosoftTeams.min.js"></script>
 </head>
-<body>
-  <h2>🌐 Personal App Settings</h2>
-  <p>Enter a URL to save:</p>
-  <input type="text" id="urlInput" placeholder="Enter your URL" />
-  <button id="saveBtn">Save</button>
-  <div id="url-display"></div>
+<body style="font-family: Arial; text-align: center; padding: 40px;">
+  <h2>🔐 Teams Personal App – Token Generator</h2>
+  <p>This app retrieves your Teams authentication token and saves data to Graph extensions.</p>
+  <button id="getTokenBtn">Get Token & Save</button>
+
+  <pre id="logBox" style="text-align: left; margin-top: 20px; padding: 15px; background: #f8f8f8; border-radius: 8px; height: 400px; overflow-y: auto;"></pre>
 
   <script>
-    let token = null;
-    let userId = null;
-    const extensionId = "com.yourapp.personalsettings"; // Custom key for storing data
+    const log = (...args) => {
+      console.log(...args);
+      const box = document.getElementById('logBox');
+      box.textContent += args.map(a => (typeof a === 'object' ? JSON.stringify(a, null, 2) : a)).join(' ') + '\n';
+    };
 
     async function init() {
       try {
-        console.log("🔄 Initializing Teams SDK...");
+        log("🚀 Initializing Teams SDK...");
         await microsoftTeams.app.initialize();
-        console.log("✅ Teams SDK initialized");
 
         const context = await microsoftTeams.app.getContext();
-        console.log("👤 Context:", context);
+        log("✅ Teams SDK initialized successfully.");
+        log("📦 Context received:", context);
 
-        // Get SSO token (from Teams login)
-        const auth = await microsoftTeams.authentication.getAuthToken();
-        token = auth;
-        console.log("🔐 Token acquired");
-
-        // Get user ID from context
-        userId = context.user.id;
-
-        // Fetch saved data from Microsoft Graph
-        await loadUserSettings();
-      } catch (err) {
-        console.error("❌ Initialization error:", err);
-      }
-    }
-
-    async function loadUserSettings() {
-      const url = `https://graph.microsoft.com/v1.0/me/extensions/${extensionId}`;
-      try {
-        const response = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const savedUrl = data.urlValue || "";
-          document.getElementById("urlInput").value = savedUrl;
-          document.getElementById("url-display").innerText = `Saved URL: ${savedUrl}`;
-          console.log("✅ Loaded user settings:", data);
-        } else if (response.status === 404) {
-          console.log("ℹ️ No saved settings found.");
+        // Log user details
+        if (context.user) {
+          log("👤 User Info:");
+          log("   ID:", context.user.id);
+          log("   Login:", context.user.loginHint);
+          log("   Tenant ID:", context.user.tenant.id);
+          log("   License:", context.user.licenseType);
         } else {
-          console.error("⚠️ Failed to load settings:", await response.text());
+          log("⚠️ No user context found!");
         }
+
+        // Attach button handler
+        document.getElementById('getTokenBtn').addEventListener('click', () => handleAuthAndSave(context));
       } catch (err) {
-        console.error("❌ Error fetching user settings:", err);
+        log("❌ Initialization error:", err);
       }
     }
 
-    async function saveUserSettings() {
-      const userUrl = document.getElementById("urlInput").value.trim();
-      if (!userUrl) return alert("Please enter a URL!");
-
-      const payload = {
-        "@odata.type": "microsoft.graph.openTypeExtension",
-        "extensionName": extensionId,
-        "urlValue": userUrl,
-      };
-
-      const url = `https://graph.microsoft.com/v1.0/me/extensions/${extensionId}`;
+    async function handleAuthAndSave(context) {
       try {
-        const response = await fetch(url, {
+        log("🔑 Requesting authentication token...");
+        const token = await microsoftTeams.authentication.getAuthToken();
+
+        if (!token || token.split('.').length !== 3) {
+          log("❌ Invalid token format or empty token:", token);
+          return;
+        }
+
+        log("✅ Token received successfully.");
+        log("🧩 Token (first 100 chars):", token.substring(0, 100) + "...");
+
+        // Make Graph PATCH request
+        const graphUrl = "https://graph.microsoft.com/v1.0/me/extensions/com.invimatic.tokenDemo";
+        log("🌐 Sending PATCH request to:", graphUrl);
+
+        const body = {
+          "@odata.type": "microsoft.graph.openTypeExtension",
+          "extensionName": "com.invimatic.tokenDemo",
+          "lastLogin": new Date().toISOString(),
+          "tenantId": context.user?.tenant?.id,
+          "loginHint": context.user?.loginHint,
+          "theme": context.app?.theme || "default"
+        };
+
+        const response = await fetch(graphUrl, {
           method: "PATCH",
           headers: {
             "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
+            "Content-Type": "application/json"
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(body)
         });
 
         if (response.ok) {
-          alert("✅ URL saved successfully!");
-          document.getElementById("url-display").innerText = `Saved URL: ${userUrl}`;
-        } else if (response.status === 404) {
-          // Create new extension if not exists
-          await createUserSettings(payload);
+          const result = await response.json();
+          log("✅ User settings saved successfully to Graph:", result);
         } else {
-          console.error("❌ Save failed:", await response.text());
+          const error = await response.text();
+          log("❌ Save failed:", error);
         }
-      } catch (err) {
-        console.error("❌ Error saving user settings:", err);
+      } catch (error) {
+        log("❌ Authentication or Graph request error:", error);
       }
     }
 
-    async function createUserSettings(payload) {
-      const url = `https://graph.microsoft.com/v1.0/me/extensions`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        alert("✅ URL saved successfully!");
-        document.getElementById("url-display").innerText = `Saved URL: ${payload.urlValue}`;
-      } else {
-        console.error("❌ Failed to create extension:", await response.text());
-      }
-    }
-
-    document.getElementById("saveBtn").addEventListener("click", saveUserSettings);
+    // Start initialization
     init();
   </script>
 </body>
