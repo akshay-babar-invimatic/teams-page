@@ -3,93 +3,130 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - URL Saver (Fixed v2)</title>
+  <title>Teams Personal App - Save User URL</title>
   <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js"></script>
+  <style>
+    body { font-family: Arial; padding: 40px; text-align: center; }
+    input { padding: 10px; width: 300px; }
+    button { padding: 10px 20px; margin-left: 10px; }
+    #url-display { margin-top: 30px; font-size: 1.2em; color: #333; }
+  </style>
 </head>
-<body style="font-family: Arial; text-align: center; padding: 40px;">
-  <h2>Teams Personal App Demo123</h2>
-
-  <div id="inputContainer">
-    <p>Enter your URL:</p>
-    <input type="text" id="urlInput" placeholder="https://example.com" style="width: 300px; padding: 5px;" />
-    <br><br>
-    <button id="saveBtn">Save URL</button>
-  </div>
-
-  <div id="displayContainer" style="display: none;">
-    <h3>Welcome Back!</h3>
-    <p>Your saved URL:</p>
-    <p id="savedUrl" style="font-weight:bold; color:blue;"></p>
-    <button id="resetBtn">Change URL</button>
-  </div>
+<body>
+  <h2>🌐 Personal App Settings</h2>
+  <p>Enter a URL to save:</p>
+  <input type="text" id="urlInput" placeholder="Enter your URL" />
+  <button id="saveBtn">Save</button>
+  <div id="url-display"></div>
 
   <script>
-    console.log("🔄 Initializing Teams SDK...");
+    let token = null;
+    let userId = null;
+    const extensionId = "com.yourapp.personalsettings"; // Custom key for storing data
 
-    microsoftTeams.app.initialize().then(async () => {
-      console.log("✅ Teams SDK initialized successfully");
+    async function init() {
+      try {
+        console.log("🔄 Initializing Teams SDK...");
+        await microsoftTeams.app.initialize();
+        console.log("✅ Teams SDK initialized");
 
-      // Fetch existing config
-      console.log("📦 Fetching existing Teams config...");
-      const config = await microsoftTeams.pages.getConfig().catch(err => {
-        console.error("❌ Error getting Teams config:", err);
-        return {};
-      });
+        const context = await microsoftTeams.app.getContext();
+        console.log("👤 Context:", context);
 
-      console.log("📤 Retrieved config object:", config);
-      const savedUrl = config?.contentUrl;
-      console.log("🔍 Saved URL found:", savedUrl);
+        // Get SSO token (from Teams login)
+        const auth = await microsoftTeams.authentication.getAuthToken();
+        token = auth;
+        console.log("🔐 Token acquired");
 
-      if (savedUrl) {
-        console.log("✅ Found existing saved URL — displaying on page");
-        document.getElementById("inputContainer").style.display = "none";
-        document.getElementById("displayContainer").style.display = "block";
-        document.getElementById("savedUrl").innerText = savedUrl;
-      } else {
-        console.log("ℹ️ No saved URL found — showing input field");
+        // Get user ID from context
+        userId = context.user.id;
+
+        // Fetch saved data from Microsoft Graph
+        await loadUserSettings();
+      } catch (err) {
+        console.error("❌ Initialization error:", err);
       }
+    }
 
-      // Save new URL
-      document.getElementById("saveBtn").addEventListener("click", async () => {
-        const urlValue = document.getElementById("urlInput").value.trim();
-        console.log("💾 Save button clicked with value:", urlValue);
+    async function loadUserSettings() {
+      const url = `https://graph.microsoft.com/v1.0/me/extensions/${extensionId}`;
+      try {
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-        if (!urlValue) {
-          console.warn("⚠️ User tried saving without entering a URL");
-          alert("Please enter a valid URL.");
-          return;
+        if (response.ok) {
+          const data = await response.json();
+          const savedUrl = data.urlValue || "";
+          document.getElementById("urlInput").value = savedUrl;
+          document.getElementById("url-display").innerText = `Saved URL: ${savedUrl}`;
+          console.log("✅ Loaded user settings:", data);
+        } else if (response.status === 404) {
+          console.log("ℹ️ No saved settings found.");
+        } else {
+          console.error("⚠️ Failed to load settings:", await response.text());
         }
+      } catch (err) {
+        console.error("❌ Error fetching user settings:", err);
+      }
+    }
 
-        console.log("🧩 Saving new config via pages.setConfig()...");
-        await microsoftTeams.pages.setConfig({
-          contentUrl: urlValue,
-          entityId: "userUrlSetting",
-          suggestedDisplayName: "My Teams App",
-          websiteUrl: urlValue
+    async function saveUserSettings() {
+      const userUrl = document.getElementById("urlInput").value.trim();
+      if (!userUrl) return alert("Please enter a URL!");
+
+      const payload = {
+        "@odata.type": "microsoft.graph.openTypeExtension",
+        "extensionName": extensionId,
+        "urlValue": userUrl,
+      };
+
+      const url = `https://graph.microsoft.com/v1.0/me/extensions/${extensionId}`;
+      try {
+        const response = await fetch(url, {
+          method: "PATCH",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
         });
 
-        console.log("✅ Config saved successfully:", { contentUrl: urlValue });
+        if (response.ok) {
+          alert("✅ URL saved successfully!");
+          document.getElementById("url-display").innerText = `Saved URL: ${userUrl}`;
+        } else if (response.status === 404) {
+          // Create new extension if not exists
+          await createUserSettings(payload);
+        } else {
+          console.error("❌ Save failed:", await response.text());
+        }
+      } catch (err) {
+        console.error("❌ Error saving user settings:", err);
+      }
+    }
 
-        document.getElementById("inputContainer").style.display = "none";
-        document.getElementById("displayContainer").style.display = "block";
-        document.getElementById("savedUrl").innerText = urlValue;
+    async function createUserSettings(payload) {
+      const url = `https://graph.microsoft.com/v1.0/me/extensions`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
 
-      // Reset config
-      document.getElementById("resetBtn").addEventListener("click", async () => {
-        console.log("🗑 Reset button clicked — clearing config");
-        await microsoftTeams.pages.setConfig({
-          contentUrl: "",
-          entityId: "userUrlSetting"
-        });
-        console.log("✅ Config cleared successfully");
+      if (response.ok) {
+        alert("✅ URL saved successfully!");
+        document.getElementById("url-display").innerText = `Saved URL: ${payload.urlValue}`;
+      } else {
+        console.error("❌ Failed to create extension:", await response.text());
+      }
+    }
 
-        document.getElementById("inputContainer").style.display = "block";
-        document.getElementById("displayContainer").style.display = "none";
-      });
-    }).catch(err => {
-      console.error("❌ Error initializing Teams SDK:", err);
-    });
+    document.getElementById("saveBtn").addEventListener("click", saveUserSettings);
+    init();
   </script>
 </body>
 </html>
