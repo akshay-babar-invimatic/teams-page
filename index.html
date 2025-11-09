@@ -3,99 +3,39 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Token Generator</title>
-  <script src="https://res.cdn.office.net/teams-js/2.22.0/js/MicrosoftTeams.min.js"></script>
+  <title>Teams Personal App - Token Generator</title>
+  <script src="https://res.cdn.office.net/teams-js/2.16.0/js/MicrosoftTeams.min.js"></script>
 </head>
-<body style="font-family: Arial; text-align: center; padding: 40px;">
-  <h2>🔐 Teams Personal App – Token Generator</h2>
-  <p>This app retrieves your Teams authentication token and saves data to Graph extensions.</p>
-  <button id="getTokenBtn">Get Token & Save</button>
+<body style="font-family: Arial; text-align:center; padding:40px;">
+  <h2>Teams Personal App Token Demo</h2>
 
-  <pre id="logBox" style="text-align: left; margin-top: 20px; padding: 15px; background: #f8f8f8; border-radius: 8px; height: 400px; overflow-y: auto;"></pre>
+  <button id="getTokenBtn">Get Token</button>
+  <pre id="tokenOutput" style="margin-top:20px; white-space:pre-wrap;"></pre>
 
   <script>
-    const log = (...args) => {
-      console.log(...args);
-      const box = document.getElementById('logBox');
-      box.textContent += args.map(a => (typeof a === 'object' ? JSON.stringify(a, null, 2) : a)).join(' ') + '\n';
-    };
+    let accessToken = "";
 
-    async function init() {
+    async function getToken() {
+      console.log("Initializing Teams SDK...");
+      await microsoftTeams.app.initialize();
+
+      console.log("Getting Teams context...");
+      const context = await microsoftTeams.app.getContext();
+      console.log("Teams context:", context);
+
       try {
-        log("🚀 Initializing Teams SDK...");
-        await microsoftTeams.app.initialize();
-
-        const context = await microsoftTeams.app.getContext();
-        log("✅ Teams SDK initialized successfully.");
-        log("📦 Context received:", context);
-
-        // Log user details
-        if (context.user) {
-          log("👤 User Info:");
-          log("   ID:", context.user.id);
-          log("   Login:", context.user.loginHint);
-          log("   Tenant ID:", context.user.tenant.id);
-          log("   License:", context.user.licenseType);
-        } else {
-          log("⚠️ No user context found!");
-        }
-
-        // Attach button handler
-        document.getElementById('getTokenBtn').addEventListener('click', () => handleAuthAndSave(context));
-      } catch (err) {
-        log("❌ Initialization error:", err);
-      }
-    }
-
-    async function handleAuthAndSave(context) {
-      try {
-        log("🔑 Requesting authentication token...");
+        console.log("Requesting SSO token...");
         const token = await microsoftTeams.authentication.getAuthToken();
-
-        if (!token || token.split('.').length !== 3) {
-          log("❌ Invalid token format or empty token:", token);
-          return;
-        }
-
-        log("✅ Token received successfully.");
-        log("🧩 Token (first 100 chars):", token.substring(0, 100) + "...");
-
-        // Make Graph PATCH request
-        const graphUrl = "https://graph.microsoft.com/v1.0/me/extensions/com.invimatic.tokenDemo";
-        log("🌐 Sending PATCH request to:", graphUrl);
-
-        const body = {
-          "@odata.type": "microsoft.graph.openTypeExtension",
-          "extensionName": "com.invimatic.tokenDemo",
-          "lastLogin": new Date().toISOString(),
-          "tenantId": context.user?.tenant?.id,
-          "loginHint": context.user?.loginHint,
-          "theme": context.app?.theme || "default"
-        };
-
-        const response = await fetch(graphUrl, {
-          method: "PATCH",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(body)
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          log("✅ User settings saved successfully to Graph:", result);
-        } else {
-          const error = await response.text();
-          log("❌ Save failed:", error);
-        }
+        accessToken = token;
+        console.log("Token acquired:", token);
+        document.getElementById("tokenOutput").innerText = token;
       } catch (error) {
-        log("❌ Authentication or Graph request error:", error);
+        console.error("Error getting token:", error);
+        document.getElementById("tokenOutput").innerText = "Error: " + JSON.stringify(error, null, 2);
       }
     }
 
-    // Start initialization
-    init();
+    document.getElementById("getTokenBtn").onclick = getToken;
   </script>
 </body>
 </html>
