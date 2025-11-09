@@ -3,125 +3,69 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - Token & URL Renderer</title>
-  <script src="https://statics.teams.microsoft.com/sdk/v1.13.0/js/MicrosoftTeams.min.js"></script>
-  <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
+  <title>Teams Personal App - URL Saver</title>
+  <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js"></script>
 </head>
-<body style="font-family: Arial; text-align:center; padding:50px;">
-  <h2>Teams Personal App Token & URL Renderer</h2>
+<body style="font-family: Arial; text-align: center; padding: 40px;">
+  <h2>Teams Personal App Demo</h2>
 
-  <button id="actionBtn">Login & Render URL</button>
-  <p id="status"></p>
-
-  <div style="margin-top:20px;">
-    <input type="text" id="userUrl" placeholder="Enter URL to display" style="width:300px; padding:5px;" />
+  <div id="inputContainer">
+    <p>Enter your URL:</p>
+    <input type="text" id="urlInput" placeholder="https://example.com" style="width: 300px; padding: 5px;" />
+    <br><br>
+    <button id="saveBtn">Save URL</button>
   </div>
 
-  <div style="margin-top:20px;">
-    <iframe id="userIframe" style="width:80%; height:400px; border:1px solid #ccc;"></iframe>
+  <div id="displayContainer" style="display: none;">
+    <h3>Welcome Back!</h3>
+    <p>Your saved URL:</p>
+    <p id="savedUrl" style="font-weight:bold; color:blue;"></p>
+    <button id="resetBtn">Change URL</button>
   </div>
 
   <script>
-    // -------------------- MSAL CONFIG --------------------
-    const msalConfig = {
-      auth: {
-        clientId: "f06fbb6a-9b84-4371-ae9b-9e18c37e8d40",
-        authority: "https://login.microsoftonline.com/common",
-        redirectUri: window.location.origin + "/"
-      },
-      cache: {
-        cacheLocation: "sessionStorage",
-        storeAuthStateInCookie: false
+    let teamsApp;
+
+    // Initialize Teams SDK
+    microsoftTeams.app.initialize().then(async () => {
+      teamsApp = microsoftTeams.app;
+
+      // Get existing settings if available
+      const settings = await teamsApp.getSettings();
+      const savedUrl = settings?.contentUrl;
+
+      if (savedUrl) {
+        // Show saved URL
+        document.getElementById("inputContainer").style.display = "none";
+        document.getElementById("displayContainer").style.display = "block";
+        document.getElementById("savedUrl").innerText = savedUrl;
       }
-    };
 
-    const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const loginRequest = { 
-      scopes: ["User.ReadWrite", "openid", "profile", "email", "User.ReadWrite.All"],
-      prompt: "consent"
-    };
-
-    // -------------------- UTILITY --------------------
-    function renderUrl(url, source, teamsUserId) {
-      console.log(`Rendering URL: ${url} (source: ${source})`);
-      let finalUrl = url;
-      if (teamsUserId) {
-        const separator = url.includes('?') ? '&' : '?';
-        finalUrl = `${url}${separator}teamsUserId=${encodeURIComponent(teamsUserId)}`;
-      }
-      document.getElementById("userIframe").src = finalUrl;
-      localStorage.setItem("savedUrl", url);
-      document.getElementById("userUrl").value = url;
-    }
-
-    async function getToken() {
-      const account = msalInstance.getAllAccounts()[0];
-      if (!account) {
-        await msalInstance.loginPopup(loginRequest);
-      }
-      const updatedAccount = msalInstance.getAllAccounts()[0];
-      const tokenResponse = await msalInstance.acquireTokenSilent({ ...loginRequest, account: updatedAccount });
-      return { token: tokenResponse.accessToken, teamsUserId: updatedAccount.localAccountId };
-    }
-
-    // -------------------- TEAMS SDK CHECK --------------------
-    function isTeams() {
-      return !!window.microsoftTeams;
-    }
-
-    async function loginAndRender() {
-      document.getElementById("status").innerText = "Processing...";
-      let savedUrl = localStorage.getItem("savedUrl");
-      let inputUrl = document.getElementById("userUrl").value.trim();
-      let teamsUserId = null;
-      let accessToken = "";
-
-      // Use input URL or saved
-      if (!inputUrl && savedUrl) inputUrl = savedUrl;
-
-      try {
-        if (isTeams()) {
-          microsoftTeams.initialize();
-          microsoftTeams.getContext(async (context) => {
-            teamsUserId = context.userObjectId;
-            const tokenData = await getToken();
-            accessToken = tokenData.token;
-            console.log("Teams UserID:", teamsUserId);
-            console.log("Access token:", accessToken);
-            if (inputUrl) renderUrl(inputUrl, "Teams flow", teamsUserId);
-            document.getElementById("status").innerText = "✅ URL rendered in Teams.";
-          });
-        } else {
-          // Browser flow
-          const tokenData = await getToken();
-          accessToken = tokenData.token;
-          teamsUserId = tokenData.teamsUserId;
-          renderUrl(inputUrl, "Browser flow", teamsUserId);
-          document.getElementById("status").innerText = "✅ URL rendered in browser.";
+      // Save new URL
+      document.getElementById("saveBtn").addEventListener("click", async () => {
+        const urlValue = document.getElementById("urlInput").value.trim();
+        if (!urlValue) {
+          alert("Please enter a valid URL.");
+          return;
         }
-      } catch (err) {
-        console.error("Error during login/render:", err);
-        document.getElementById("status").innerText = "❌ Error obtaining token or rendering URL.";
-      }
-    }
 
-    // -------------------- BUTTON --------------------
-    document.getElementById("actionBtn").onclick = loginAndRender;
-
-    // -------------------- AUTO-RENDER --------------------
-    window.addEventListener("DOMContentLoaded", async () => {
-      const savedUrl = localStorage.getItem("savedUrl");
-      if (!savedUrl) return;
-      if (isTeams()) {
-        microsoftTeams.initialize();
-        microsoftTeams.getContext((context) => {
-          renderUrl(savedUrl, "Teams auto-load", context.userObjectId);
+        await teamsApp.setSettings({
+          contentUrl: urlValue, // persisted in Teams
+          entityId: "userUrlSetting",
+          suggestedDisplayName: "My Teams App",
         });
-      } else {
-        const account = msalInstance.getAllAccounts()[0];
-        const teamsUserId = account ? account.localAccountId : null;
-        renderUrl(savedUrl, "Browser auto-load", teamsUserId);
-      }
+
+        document.getElementById("inputContainer").style.display = "none";
+        document.getElementById("displayContainer").style.display = "block";
+        document.getElementById("savedUrl").innerText = urlValue;
+      });
+
+      // Allow reset
+      document.getElementById("resetBtn").addEventListener("click", async () => {
+        await teamsApp.setSettings({ contentUrl: "", entityId: "userUrlSetting" });
+        document.getElementById("inputContainer").style.display = "block";
+        document.getElementById("displayContainer").style.display = "none";
+      });
     });
   </script>
 </body>
