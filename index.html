@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal App - URL Saver</title>
+  <title>Teams Personal App - URL Saver (Debug)</title>
   <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js"></script>
 </head>
 <body style="font-family: Arial; text-align: center; padding: 40px;">
@@ -26,34 +26,50 @@
   <script>
     let teamsApp;
 
+    console.log("🔄 Initializing Teams SDK...");
+
     // Initialize Teams SDK
     microsoftTeams.app.initialize().then(async () => {
+      console.log("✅ Teams SDK initialized successfully");
+
       teamsApp = microsoftTeams.app;
 
-      // Get existing settings if available
+      // Get existing settings
+      console.log("📦 Fetching existing settings...");
       const settings = await teamsApp.getSettings();
+      console.log("📤 Retrieved settings object:", settings);
+
       const savedUrl = settings?.contentUrl;
+      console.log("🔍 Saved URL found:", savedUrl);
 
       if (savedUrl) {
-        // Show saved URL
+        console.log("✅ Found existing saved URL — displaying on page");
         document.getElementById("inputContainer").style.display = "none";
         document.getElementById("displayContainer").style.display = "block";
         document.getElementById("savedUrl").innerText = savedUrl;
+      } else {
+        console.log("ℹ️ No saved URL found — showing input field");
       }
 
       // Save new URL
       document.getElementById("saveBtn").addEventListener("click", async () => {
         const urlValue = document.getElementById("urlInput").value.trim();
+        console.log("💾 Save button clicked with value:", urlValue);
+
         if (!urlValue) {
+          console.warn("⚠️ User tried saving without entering a URL");
           alert("Please enter a valid URL.");
           return;
         }
 
+        console.log("🧩 Saving new settings via teamsApp.setSettings()...");
         await teamsApp.setSettings({
-          contentUrl: urlValue, // persisted in Teams
+          contentUrl: urlValue, // persisted in Teams cloud
           entityId: "userUrlSetting",
           suggestedDisplayName: "My Teams App",
         });
+
+        console.log("✅ Settings saved successfully to Teams cloud:", { contentUrl: urlValue });
 
         document.getElementById("inputContainer").style.display = "none";
         document.getElementById("displayContainer").style.display = "block";
@@ -62,10 +78,15 @@
 
       // Allow reset
       document.getElementById("resetBtn").addEventListener("click", async () => {
+        console.log("🗑 Reset button clicked — clearing settings");
         await teamsApp.setSettings({ contentUrl: "", entityId: "userUrlSetting" });
+        console.log("✅ Settings cleared successfully");
+
         document.getElementById("inputContainer").style.display = "block";
         document.getElementById("displayContainer").style.display = "none";
       });
+    }).catch(err => {
+      console.error("❌ Error initializing Teams SDK:", err);
     });
   </script>
 </body>
