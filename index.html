@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal Widget Embedder</title>
+  <title>TheLoops - Teams Widget Embedder</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://res.cdn.office.net/teams-js/2.15.0/js/MicrosoftTeams.min.js"></script>
   <style>
     :root {
       --teams-bg: #f3f5f8;
-      --teams-primary: #22c55e; /* green */
+      --teams-primary: #464EB8; /* TheLoops/Teams Purple */
       --teams-border: #e0e0e0;
       --font-family: 'Inter', sans-serif;
     }
@@ -44,13 +44,13 @@
       <label for="urlInput" class="text-sm font-medium text-gray-700 mr-3 hidden sm:block">Widget URL:</label>
       <input id="urlInput" type="url"
         placeholder="Enter a secure (https://) widget URL..."
-        class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-teams-primary focus:border-teams-primary text-sm"
+        class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-[#464EB8] focus:border-[#464EB8] text-sm"
       >
       <button id="loadButton"
-  class="ml-3 bg-[#464EB8] hover:bg-[#3b429a] text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md"
->
-  Save
-</button>
+        class="ml-3 bg-[#464EB8] hover:bg-[#3b429a] text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md"
+      >
+        Save
+      </button>
     </div>
 
     <div class="relative flex-grow">
@@ -93,7 +93,7 @@
       }
     }
 
-    // ---- Always fetch widget config from backend ----
+    // ---- Fetch existing widget config ----
     async function fetchWidgetConfig() {
       console.log(`🌐 Calling GET API: ${BASE_URL}/${userId}`);
       try {
@@ -105,6 +105,7 @@
         const data = await res.json();
         console.log("📦 API Response JSON:", data);
 
+        // ✅ If widget config exists
         if (data.responseCode === 200 && data.widgetConfigMetadata?.metaData) {
           const meta = JSON.parse(data.widgetConfigMetadata.metaData);
           console.log("🧩 Extracted metadata:", meta);
@@ -114,7 +115,11 @@
             return;
           }
         }
+
+        // ❌ No widget found
+        console.warn("⚠️ No widget config found for user.");
         showInputPrompt();
+
       } catch (e) {
         console.error("❌ Fetch failed:", e);
         showInputPrompt();
@@ -183,13 +188,13 @@
       statusOverlay.classList.remove("hidden");
       statusMessage.innerHTML = `
         <p class="font-bold text-xl mb-2">Setup Required</p>
-        <p>Enter your widget URL above and click <b>Save & Render</b>.</p>
+        <p>Enter your widget URL above and click <b>Save</b>.</p>
       `;
     }
 
     // ---- Button click handler ----
     loadButton.addEventListener("click", async () => {
-      console.log("🖱️ Save & Render button clicked.");
+      console.log("🖱️ Save button clicked.");
       const newUrl = urlInput.value.trim();
       if (!newUrl.startsWith("https://")) {
         console.warn("⚠️ Invalid URL entered:", newUrl);
@@ -197,12 +202,31 @@
         return;
       }
 
-      console.log("🔄 Updating backend with new widget URL...");
-      await updateWidgetConfig(newUrl);
-      renderWidget(newUrl);
+      console.log("🔄 Checking existing config before save...");
+      try {
+        const res = await fetch(`${BASE_URL}/${userId}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json", "accept": "application/json" }
+        });
+        const data = await res.json();
+
+        // 🧠 Decide whether to POST or PUT
+        if (data.status === "Error" || data.message?.includes("not found") || res.status === 404) {
+          console.log("🟢 No existing config → Creating new via POST");
+          await createWidgetConfig(newUrl);
+        } else {
+          console.log("🟡 Existing config found → Updating via PUT");
+          await updateWidgetConfig(newUrl);
+        }
+
+        renderWidget(newUrl);
+      } catch (err) {
+        console.error("❌ Failed to save widget config:", err);
+        alert("Something went wrong while saving your widget.");
+      }
     });
 
-    // ---- Load on page ready ----
+    // ---- Initialize when ready ----
     initTeams();
   </script>
 </body>
