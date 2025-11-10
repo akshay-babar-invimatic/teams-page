@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teams Personal Widget Embedder </title>
+  <title>Teams Personal Widget Embedder</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://res.cdn.office.net/teams-js/2.15.0/js/MicrosoftTeams.min.js"></script>
   <style>
     :root {
       --teams-bg: #f3f5f8;
-      --teams-primary: #6264a7;
+      --teams-primary: #22c55e; /* green */
       --teams-border: #e0e0e0;
       --font-family: 'Inter', sans-serif;
     }
@@ -47,8 +47,8 @@
         class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-teams-primary focus:border-teams-primary text-sm"
       >
       <button id="loadButton"
-        class="ml-3 bg-teams-primary hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md"
-      >Load Widget</button>
+        class="ml-3 bg-teams-primary hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md"
+      >Save & Render</button>
     </div>
 
     <div class="relative flex-grow">
@@ -84,28 +84,14 @@
         console.log("✅ Teams initialized successfully");
         console.log("👤 User ID:", userId);
         console.log("📧 User Email:", userEmail);
-        await loadWidgetFromCacheOrAPI();
+        await fetchWidgetConfig();
       } catch (err) {
         console.error("❌ Teams init failed:", err);
         statusMessage.innerHTML = "<p>Unable to load Teams context.</p>";
       }
     }
 
-    // ---- Load widget from cache or API ----
-    async function loadWidgetFromCacheOrAPI() {
-      console.log("🔍 Checking local cache for widget URL...");
-      const cached = localStorage.getItem(`widgetUrl_${userId}`);
-
-      if (cached) {
-        console.log("✅ Cache hit! Widget URL found:", cached);
-        renderWidget(cached);
-      } else {
-        console.log("⚠️ Cache miss! Fetching from API...");
-        await fetchWidgetConfig();
-      }
-    }
-
-    // ---- Fetch widget config from backend ----
+    // ---- Always fetch widget config from backend ----
     async function fetchWidgetConfig() {
       console.log(`🌐 Calling GET API: ${BASE_URL}/${userId}`);
       try {
@@ -121,17 +107,11 @@
           const meta = JSON.parse(data.widgetConfigMetadata.metaData);
           console.log("🧩 Extracted metadata:", meta);
           if (meta.widgetUrl) {
-            console.log("✅ Widget URL found in response:", meta.widgetUrl);
-            localStorage.setItem(`widgetUrl_${userId}`, meta.widgetUrl);
+            console.log("✅ Widget URL found:", meta.widgetUrl);
             renderWidget(meta.widgetUrl);
             return;
-          } else {
-            console.warn("⚠️ Widget URL missing inside metaData.");
           }
-        } else {
-          console.warn("⚠️ Invalid or empty widget config response.");
         }
-
         showInputPrompt();
       } catch (e) {
         console.error("❌ Fetch failed:", e);
@@ -185,9 +165,12 @@
 
     // ---- Render iframe ----
     function renderWidget(url) {
-      console.log("🖼️ Rendering widget iframe with URL:", url);
+      console.log("🖼️ Rendering widget iframe with base URL:", url);
+      const finalUrl = `${url}${url.includes("?") ? "&" : "?"}userExternalId=${encodeURIComponent(userId)}`;
+      console.log("🔗 Final widget URL with query param:", finalUrl);
+
       urlInput.value = url;
-      widgetIframe.src = url;
+      widgetIframe.src = finalUrl;
       statusOverlay.classList.add("hidden");
       console.log("✅ Widget rendered successfully.");
     }
@@ -198,13 +181,13 @@
       statusOverlay.classList.remove("hidden");
       statusMessage.innerHTML = `
         <p class="font-bold text-xl mb-2">Setup Required</p>
-        <p>Enter your widget URL above and click <b>Load Widget</b>.</p>
+        <p>Enter your widget URL above and click <b>Save & Render</b>.</p>
       `;
     }
 
     // ---- Button click handler ----
     loadButton.addEventListener("click", async () => {
-      console.log("🖱️ Load Widget button clicked.");
+      console.log("🖱️ Save & Render button clicked.");
       const newUrl = urlInput.value.trim();
       if (!newUrl.startsWith("https://")) {
         console.warn("⚠️ Invalid URL entered:", newUrl);
@@ -212,21 +195,8 @@
         return;
       }
 
-      const cached = localStorage.getItem(`widgetUrl_${userId}`);
-      console.log("📁 Current cached URL:", cached);
-
-      if (!cached) {
-        console.log("No cache exists. Creating new widget config...");
-        await createWidgetConfig(newUrl);
-      } else if (cached !== newUrl) {
-        console.log("URL changed. Updating widget config...");
-        await updateWidgetConfig(newUrl);
-      } else {
-        console.log("URL is unchanged. Skipping API update.");
-      }
-
-      localStorage.setItem(`widgetUrl_${userId}`, newUrl);
-      console.log("💾 Updated cache with new widget URL:", newUrl);
+      console.log("🔄 Updating backend with new widget URL...");
+      await updateWidgetConfig(newUrl);
       renderWidget(newUrl);
     });
 
