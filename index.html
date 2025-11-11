@@ -1,23 +1,233 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Hello World</title>
-    <script src="https://res.cdn.office.net/teams-js/2.15.0/js/MicrosoftTeams.min.js"></script>
-    <script>
-      microsoftTeams.app.initialize().then(() => {
-        document.getElementById("msg").textContent = "✅ Hello World from Microsoft Teams!";
-      });
-    </script>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        text-align: center;
-        margin-top: 50px;
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TheLoops - Teams Widget Embedder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://res.cdn.office.net/teams-js/2.15.0/js/MicrosoftTeams.min.js"></script>
+  <style>
+    :root {
+      --teams-bg: #f3f5f8;
+      --teams-primary: #464EB8; /* TheLoops/Teams Purple */
+      --teams-border: #e0e0e0;
+      --font-family: 'Inter', sans-serif;
+    }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-family);
+      background-color: var(--teams-bg);
+      overflow: hidden;
+    }
+    .app-container { display: flex; flex-direction: column; height: 100%; padding: 1rem; }
+    .input-bar {
+      background-color: white; padding: 0.75rem 1rem; border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 1rem;
+      display: flex; align-items: center; flex-shrink: 0;
+    }
+    .widget-iframe {
+      flex-grow: 1; width: 100%; border: 1px solid var(--teams-border);
+      border-radius: 0.5rem; background-color: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05); height: 100%;
+    }
+    .loading-overlay {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.8);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 10; border-radius: 0.5rem; flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container" id="app">
+    <div class="input-bar">
+      <label for="urlInput" class="text-sm font-medium text-gray-700 mr-3 hidden sm:block">Widget URL:</label>
+      <input id="urlInput" type="url"
+        placeholder="Enter a secure (https://) widget URL..."
+        class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-[#464EB8] focus:border-[#464EB8] text-sm"
+      >
+      <button id="loadButton"
+        class="ml-3 bg-[#464EB8] hover:bg-[#3b429a] text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md"
+      >
+        Save
+      </button>
+    </div>
+
+    <div class="relative flex-grow">
+      <iframe id="widgetIframe" class="widget-iframe" frameborder="0"></iframe>
+      <div id="statusOverlay" class="loading-overlay">
+        <div id="statusMessage" class="text-gray-500 text-center p-4">
+          <p class="font-bold text-xl mb-2">Welcome!</p>
+          <p>Fetching your widget...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = "https://api.concept.theloops.ai/api/v1/widget-config";
+    const widgetIframe = document.getElementById("widgetIframe");
+    const urlInput = document.getElementById("urlInput");
+    const loadButton = document.getElementById("loadButton");
+    const statusOverlay = document.getElementById("statusOverlay");
+    const statusMessage = document.getElementById("statusMessage");
+
+    let userId = null;
+    let userEmail = null;
+
+    // ---- Initialize Teams SDK ----
+    async function initTeams() {
+      console.log("🟦 Initializing Microsoft Teams SDK...");
+      try {
+        await microsoftTeams.app.initialize();
+        const context = await microsoftTeams.app.getContext();
+        userId = context.user?.id || context.userObjectId || "unknown_user";
+        userEmail = context.user?.userPrincipalName || context.user?.loginHint || "unknown_email";
+        console.log("✅ Teams initialized successfully");
+        console.log("👤 User ID:", userId);
+        console.log("📧 User Email:", userEmail);
+        await fetchWidgetConfig();
+      } catch (err) {
+        console.error("❌ Teams init failed:", err);
+        statusMessage.innerHTML = "<p>Unable to load Teams context.</p>";
       }
-    </style>
-  </head>
-  <body>
-    <h1 id="msg">Loading...</h1>
-  </body>
+    }
+
+    // ---- Fetch existing widget config ----
+    async function fetchWidgetConfig() {
+      console.log(`🌐 Calling GET API: ${BASE_URL}/${userId}`);
+      try {
+        const res = await fetch(`${BASE_URL}/${userId}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json", "accept": "application/json" }
+        });
+        console.log("📥 API Response Status:", res.status);
+        const data = await res.json();
+        console.log("📦 API Response JSON:", data);
+
+        // ✅ If widget config exists
+        if (data.responseCode === 200 && data.widgetConfigMetadata?.metaData) {
+          const meta = JSON.parse(data.widgetConfigMetadata.metaData);
+          console.log("🧩 Extracted metadata:", meta);
+          if (meta.widgetUrl) {
+            console.log("✅ Widget URL found:", meta.widgetUrl);
+            renderWidget(meta.widgetUrl);
+            return;
+          }
+        }
+
+        // ❌ No widget found
+        console.warn("⚠️ No widget config found for user.");
+        showInputPrompt();
+
+      } catch (e) {
+        console.error("❌ Fetch failed:", e);
+        showInputPrompt();
+      }
+    }
+
+    // ---- Create new widget config ----
+    async function createWidgetConfig(widgetUrl) {
+      console.log("🟢 Calling POST API to create widget config...");
+      const payload = {
+        userExternalId: userId,
+        emailId: userEmail,
+        metaData: JSON.stringify({ widgetUrl })
+      };
+      console.log("📤 POST Payload:", payload);
+
+      try {
+        const res = await fetch(BASE_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        console.log("📥 POST API Response Status:", res.status);
+        const data = await res.json();
+        console.log("📦 POST API Response JSON:", data);
+      } catch (e) {
+        console.error("❌ POST API failed:", e);
+      }
+    }
+
+    // ---- Update existing widget config ----
+    async function updateWidgetConfig(widgetUrl) {
+      console.log("🟡 Calling PUT API to update widget config...");
+      const payload = { metaData: JSON.stringify({ widgetUrl }) };
+      console.log("📤 PUT Payload:", payload);
+
+      try {
+        const res = await fetch(`${BASE_URL}/${userId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        console.log("📥 PUT API Response Status:", res.status);
+        const data = await res.json();
+        console.log("📦 PUT API Response JSON:", data);
+      } catch (e) {
+        console.error("❌ PUT API failed:", e);
+      }
+    }
+
+    // ---- Render iframe ----
+    function renderWidget(url) {
+      console.log("🖼️ Rendering widget iframe with base URL:", url);
+      const finalUrl = `${url}${url.includes("?") ? "&" : "?"}userExternalId=${encodeURIComponent(userId)}`;
+      console.log("🔗 Final widget URL with query param:", finalUrl);
+
+      urlInput.value = url;
+      widgetIframe.src = finalUrl;
+      statusOverlay.classList.add("hidden");
+      console.log("✅ Widget rendered successfully.");
+    }
+
+    // ---- Show input prompt ----
+    function showInputPrompt() {
+      console.log("💬 Prompting user to enter widget URL...");
+      statusOverlay.classList.remove("hidden");
+      statusMessage.innerHTML = `
+        <p class="font-bold text-xl mb-2">Setup Required</p>
+        <p>Enter your widget URL above and click <b>Save</b>.</p>
+      `;
+    }
+
+    // ---- Button click handler ----
+    loadButton.addEventListener("click", async () => {
+      console.log("🖱️ Save button clicked.");
+      const newUrl = urlInput.value.trim();
+      if (!newUrl.startsWith("https://")) {
+        console.warn("⚠️ Invalid URL entered:", newUrl);
+        alert("Please enter a valid secure (https) URL.");
+        return;
+      }
+
+      console.log("🔄 Checking existing config before save...");
+      try {
+        const res = await fetch(`${BASE_URL}/${userId}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json", "accept": "application/json" }
+        });
+        const data = await res.json();
+
+        // 🧠 Decide whether to POST or PUT
+        if (data.status === "Error" || data.message?.includes("not found") || res.status === 404) {
+          console.log("🟢 No existing config → Creating new via POST");
+          await createWidgetConfig(newUrl);
+        } else {
+          console.log("🟡 Existing config found → Updating via PUT");
+          await updateWidgetConfig(newUrl);
+        }
+
+        renderWidget(newUrl);
+      } catch (err) {
+        console.error("❌ Failed to save widget config:", err);
+        alert("Something went wrong while saving your widget.");
+      }
+    });
+
+    // ---- Initialize when ready ----
+    initTeams();
+  </script>
+</body>
 </html>
