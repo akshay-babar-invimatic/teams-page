@@ -1,32 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Hello World Channel Tab</title>
-    <script src="https://res.cdn.office.net/teams-js/2.15.0/js/MicrosoftTeams.min.js"></script>
-    <script>
-      microsoftTeams.app.initialize().then(() => {
-        console.log("✅ Teams channel tab initialized successfully!");
+<head>
+  <meta charset="UTF-8">
+  <title>TheLoops Widget Config Page</title>
+  <script src="https://statics.teams.cdn.office.net/sdk/v2.0.0/js/MicrosoftTeams.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    h1 {
+      color: #0078d4;
+    }
+    button {
+      background-color: #0078d4;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 16px;
+      border-radius: 4px;
+      margin-top: 20px;
+    }
+    button:hover {
+      background-color: #005a9e;
+    }
+  </style>
+</head>
+<body>
+  <h1>TheLoops Widget Configuration</h1>
+  <p>This is a test configuration page. Click "Save" to add the tab to this channel.</p>
+
+  <button id="saveBtn">Save</button>
+
+  <script>
+    // Initialize the Teams SDK
+    microsoftTeams.appInitialization.notifyAppLoaded();
+    microsoftTeams.appInitialization.notifySuccess();
+
+    // Function to save tab settings
+    document.getElementById("saveBtn").onclick = function() {
+      // Set the tab settings
+      microsoftTeams.settings.setSettings({
+        contentUrl: "https://akshay-babar-invimatic.github.io/teams-page/", // URL of your tab page
+        websiteUrl: "https://akshay-babar-invimatic.github.io/teams-page/",
+        suggestedDisplayName: "TheLoops Widget" // Name shown in the tab
       });
-    </script>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        background-color: #f3f2f1;
-        margin: 0;
-      }
-      h1 {
-        color: #0078d4;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>Hello Channel 👋</h1>
-    <p>This is a shared Teams tab visible to everyone in this channel.</p>
-  </body>
+
+      // Register onSave handler so Teams knows Save was successful
+      microsoftTeams.settings.registerOnSaveHandler((saveEvent) => {
+        saveEvent.notifySuccess();
+      });
+    };
+  </script>
+</body>
 </html>
