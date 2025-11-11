@@ -2,29 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hello World Teams App</title>
+    <title>Hello World</title>
     <script src="https://res.cdn.office.net/teams-js/2.15.0/js/MicrosoftTeams.min.js"></script>
     <script>
-      document.addEventListener("DOMContentLoaded", async () => {
-        try {
-          await microsoftTeams.app.initialize();
-          document.getElementById("status").textContent = "✅ Teams initialized successfully!";
-        } catch (e) {
-          document.getElementById("status").textContent = "❌ Failed to initialize Teams: " + e;
-        }
+      microsoftTeams.app.initialize().then(() => {
+        document.getElementById("msg").textContent = "✅ Hello World from Microsoft Teams!";
       });
     </script>
     <style>
       body {
-        font-family: sans-serif;
+        font-family: Arial, sans-serif;
         text-align: center;
         margin-top: 50px;
       }
     </style>
   </head>
   <body>
-    <h1>Hello, World! 👋</h1>
-    <p id="status">Initializing Teams...</p>
+    <h1 id="msg">Loading...</h1>
   </body>
 </html>
