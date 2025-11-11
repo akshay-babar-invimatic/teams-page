@@ -1,20 +1,32 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Hello World Tab</title>
+    <title>Hello World Channel Tab</title>
     <script src="https://res.cdn.office.net/teams-js/2.15.0/js/MicrosoftTeams.min.js"></script>
-  </head>
-  <body style="font-family:sans-serif; text-align:center; margin-top:100px;">
-    <h1>👋 Hello from your first Teams Tab App!</h1>
-    <p>This tab is running inside Microsoft Teams.</p>
-
     <script>
       microsoftTeams.app.initialize().then(() => {
-        microsoftTeams.app.getContext().then(ctx => {
-          console.log("Hello", ctx.user.userPrincipalName);
-        });
+        console.log("✅ Teams channel tab initialized successfully!");
       });
     </script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background-color: #f3f2f1;
+        margin: 0;
+      }
+      h1 {
+        color: #0078d4;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Hello Channel 👋</h1>
+    <p>This is a shared Teams tab visible to everyone in this channel.</p>
   </body>
 </html>
