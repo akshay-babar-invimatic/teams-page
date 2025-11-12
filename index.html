@@ -5,23 +5,46 @@
     <style>
         body, html { 
             margin: 0; 
-            padding: 0; 
-            height: 100%; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
+            padding: 20px; 
             font-family: Arial, sans-serif; 
             background-color: #f3f3f3;
         }
-        h1 { color: #0078D7; }
+        #urlDisplay {
+            font-size: 18px;
+            color: #0078D7;
+            word-break: break-all;
+        }
     </style>
     <script src="https://statics.teams.microsoft.com/sdk/v1.13.1/js/MicrosoftTeams.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
-    <h1>Hello World!</h1>
+    <h2>User Provided URL:</h2>
+    <div id="urlDisplay">Loading...</div>
 
     <script>
+        console.log("Tab page script started");
+
+        // Initialize Teams SDK
         microsoftTeams.initialize();
+        console.log("Microsoft Teams SDK initialized");
+
+        // Get the user URL from query string
+        const params = new URLSearchParams(window.location.search);
+        const userUrl = params.get('url');
+        console.log("Query string parameters:", window.location.search);
+        console.log("User URL from query string:", userUrl);
+
+        const displayDiv = document.getElementById('urlDisplay');
+
+        if (userUrl) {
+            console.log("Rendering user URL in tab:", userUrl);
+            displayDiv.textContent = userUrl;
+        } else {
+            console.warn("No URL provided in query string");
+            displayDiv.textContent = "No URL provided. Please reconfigure the tab.";
+        }
+
+        console.log("Tab page script finished");
     </script>
 </body>
 </html>
