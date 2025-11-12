@@ -1,21 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Welcome Tab</title>
-    <script src="https://statics.teams.microsoft.com/sdk/v2.0/js/MicrosoftTeams.min.js"></script>
+    <title>Website Tab</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; }
+        iframe { width: 100%; height: 100%; border: none; }
+    </style>
+    <script src="https://statics.teams.microsoft.com/sdk/v2.0.0/js/MicrosoftTeams.min.js"></script>
 </head>
 <body>
-    <h1 id="welcomeText">Welcome!</h1>
+    <iframe id="userIframe" src=""></iframe>
 
     <script>
         microsoftTeams.initialize();
 
-        // Get username from query string
         const params = new URLSearchParams(window.location.search);
-        const name = params.get("name");
+        const url = params.get('url');
 
-        if (name) {
-            document.getElementById("welcomeText").innerText = `Welcome, ${name}!`;
+        if (url) {
+            document.getElementById('userIframe').src = url;
+        } else {
+            document.body.innerHTML = "<h3>No URL provided. Please reconfigure the tab.</h3>";
         }
     </script>
 </body>
