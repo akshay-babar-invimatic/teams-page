@@ -6,7 +6,7 @@
         body, html { margin: 0; padding: 0; height: 100%; }
         iframe { width: 100%; height: 100%; border: none; }
     </style>
-   <script src="https://statics.teams.microsoft.com/sdk/v1.13.1/js/MicrosoftTeams.min.js" crossorigin="anonymous"></script>
+    <script src="https://statics.teams.microsoft.com/sdk/v1.13.1/js/MicrosoftTeams.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <iframe id="userIframe" src=""></iframe>
@@ -14,12 +14,12 @@
     <script>
         microsoftTeams.initialize();
 
-        // Get the URL from tab settings query string
+        // Get the user URL from query string
         const params = new URLSearchParams(window.location.search);
-        const url = params.get('url');
+        const userUrl = params.get('url');
 
-        if (url) {
-            document.getElementById('userIframe').src = url;
+        if (userUrl) {
+            document.getElementById('userIframe').src = userUrl;
         } else {
             document.body.innerHTML = "<h3>No URL provided. Please reconfigure the tab.</h3>";
         }
