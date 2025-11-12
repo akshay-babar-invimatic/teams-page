@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://statics.teams.microsoft.com/sdk/v2.0/MicrosoftTeams.min.js"></script>
-    <script>
-        // Initialize Teams SDK
-        microsoftTeams.initialize();  
-
-        // Set tab settings (required)
-        microsoftTeams.settings.setSettings({
-            contentUrl: "https://691396532c3516678e2390cb--earnest-kheer-bb97eb.netlify.app/config.html",
-            entityId: "helloWorldTab"
-        });
-
-        // Enable Save button
-        microsoftTeams.settings.registerOnSaveHandler((saveEvent) => {
-            saveEvent.notifySuccess();
-        });
-    </script>
+    <title>Welcome Tab</title>
+    <script src="https://statics.teams.microsoft.com/sdk/v2.0/js/MicrosoftTeams.min.js"></script>
 </head>
-<body></body>
+<body>
+    <h1 id="welcomeText">Welcome!</h1>
+
+    <script>
+        microsoftTeams.initialize();
+
+        // Get username from query string
+        const params = new URLSearchParams(window.location.search);
+        const name = params.get("name");
+
+        if (name) {
+            document.getElementById("welcomeText").innerText = `Welcome, ${name}!`;
+        }
+    </script>
+</body>
 </html>
