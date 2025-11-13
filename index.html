@@ -14,8 +14,8 @@
       console.log("✅ Teams SDK initialized"); 
 
       microsoftTeams.app.getContext().then((context) => {
-        console.log("🧍 User ID:", context.user.id);
-        console.log("👥 Team ID:", context.team?.groupId || "No team (personal app)");
+        console.log("User ID:", context.user.id);
+         console.log("Tenant ID:", context.user?.tenant?.id || "Tenant not found");
       }).catch((err) => console.error("Error getting context:", err));
     }).catch((err) => console.error("Error initializing Teams SDK:", err));
   </script>
