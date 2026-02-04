@@ -4,31 +4,26 @@
     <script src="https://res.cdn.office.net/teams-js/2.19.0/js/MicrosoftTeams.min.js"></script>
     <script>
         window.onload = function () {
-            // Initialize Teams SDK   
+            // Initialize Teams SDK
             microsoftTeams.app.initialize().then(() => {
 
                 const urlInput = document.getElementById("urlInput");
-                const saveButton = document.getElementById("saveButton");
 
-                // Enable the Save button only when input is not empty
+                // Enable the Save button when input is not empty
                 urlInput.addEventListener("input", () => {
-                    const isValid = urlInput.value.trim() !== "";
-                    microsoftTeams.pages.config.setValidityState(isValid);
+                    const isNotEmpty = urlInput.value.trim() !== "";
+                    microsoftTeams.pages.config.setValidityState(isNotEmpty);
                 });
 
                 // Register the save handler
                 microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
                     const userUrl = urlInput.value.trim();
-                    if (!userUrl) {
-                        alert("Please enter a valid URL.");
-                        saveEvent.notifyFailure();
-                        return;
-                    }
 
+                    // Set the tab configuration using the exact URL entered
                     microsoftTeams.pages.config.setConfig({
                         entityId: "helloWorldTab",
-                        contentUrl: `${userUrl}/login`,
-                        websiteUrl: `${userUrl}/login`,
+                        contentUrl: userUrl,
+                        websiteUrl: userUrl,
                         suggestedDisplayName: "HITL Dashboard"
                     }).then(() => {
                         saveEvent.notifySuccess();
@@ -45,9 +40,9 @@
     </script>
 </head>
 <body>
-    <h3>Configuration Page Test1</h3>
-    <p>Enter the base URL for your tab:</p>
-    <input type="text" id="urlInput" placeholder="https://yourdomain.com" style="width: 300px;" />
-    <p>The Save button will be enabled when a URL is entered.</p>
+    <h3>Configuration Page</h3>
+    <p>Enter the full URL for your tab (including HTTPS):</p>
+    <input type="text" id="urlInput" placeholder="https://example.com" style="width: 300px;" />
+    <p>The Save button will be enabled once you enter the URL.</p>
 </body>
 </html>
