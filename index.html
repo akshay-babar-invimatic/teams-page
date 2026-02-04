@@ -1,22 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://statics.teams.microsoft.com/sdk/v2.0/MicrosoftTeams.min.js"></script>
+    <script src="https://res.cdn.office.net/teams-js/2.19.0/js/MicrosoftTeams.min.js"></script>
     <script>
-        // Initialize Teams SDK
-        microsoftTeams.initialize();  
+        // 1. Initialize the app
+        microsoftTeams.app.initialize().then(() => {
+            
+            // 2. IMPORTANT: This specific line enables the "Save" button
+            microsoftTeams.pages.config.setValidityState(true);
 
-        // Set tab settings (required)
-        microsoftTeams.settings.setSettings({
-            contentUrl: "https://sandboxqa.concept.theloops.ai/login",
-            entityId: "helloWorldTab"
-        });
-
-        // Enable Save button
-        microsoftTeams.settings.registerOnSaveHandler((saveEvent) => {
-            saveEvent.notifySuccess();
+            // 3. Define what happens when they click the now-enabled Save button
+            microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
+                microsoftTeams.pages.config.setConfig({
+                    entityId: "helloWorldTab",
+                    contentUrl: "https://sandboxqa.concept.theloops.ai/login",
+                    websiteUrl: "https://sandboxqa.concept.theloops.ai/login",
+                    suggestedDisplayName: "HITL Dashboard"
+                }).then(() => {
+                    // Tell Teams the save operation is finished
+                    saveEvent.notifySuccess();
+                });
+            });
+        }).catch((err) => {
+            console.error("Teams SDK failed to initialize", err);
         });
     </script>
 </head>
-<body></body>
+<body>
+    <h3>Configuration Page Loaded</h3>
+    <p>If the Save button is active, the SDK connected successfully.</p>
+</body>
 </html>
