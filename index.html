@@ -3,22 +3,26 @@
 <head>
     <script src="https://res.cdn.office.net/teams-js/2.19.0/js/MicrosoftTeams.min.js"></script>
     <script>
-        // Wait until the page is fully loaded 
         window.onload = function () {
-            // 1. Initialize the Teams SDK
+            console.log("[DEBUG] Page loaded, initializing Teams SDK...");
+
             microsoftTeams.app.initialize().then(() => {
+                console.log("[DEBUG] Teams SDK initialized successfully");
 
                 const urlInput = document.getElementById("urlInput");
+
+                // Enable the Save button immediately since we are using hardcoded URL
+                microsoftTeams.pages.config.setValidityState(true);
+                console.log("[DEBUG] Save button enabled");
 
                 // Log the user input whenever it changes
                 urlInput.addEventListener("input", () => {
                     const userUrl = urlInput.value.trim();
-                    console.log("[DEBUG] User entered URL:", userUrl);
+                    console.log("[DEBUG] User entered URL (for logging only):", userUrl);
                 });
 
-                // 3. Register the save handler
+                // Register the save handler
                 microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
-                    // Always use hardcoded URL for the tab
                     const hardcodedUrl = "https://sandboxqa.concept.theloops.ai/login";
 
                     microsoftTeams.pages.config.setConfig({
@@ -36,7 +40,7 @@
                 });
 
             }).catch((err) => {
-                console.error("Teams SDK failed to initialize", err);
+                console.error("[DEBUG] Teams SDK failed to initialize", err);
             });
         };
     </script>
