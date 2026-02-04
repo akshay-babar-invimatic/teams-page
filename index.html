@@ -13,8 +13,8 @@
 
                 // 3. Register the save handler
                 microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
-                    // Get URL from input field
-                    const userUrl = document.getElementById("userUrl").value || "https://sandboxqa.concept.theloops.ai/login";
+                    // Get URL dynamically from the input field
+                    const userUrl = document.getElementById("tabUrl").value || "https://sandboxqa.concept.theloops.ai/login";
 
                     microsoftTeams.pages.config.setConfig({
                         entityId: "helloWorldTab",
@@ -37,11 +37,11 @@
     </script>
 </head>
 <body>
-    <h3>Configuration Page Loaded</h3>
+    <h3>Configuration Page Loaded Test</h3>
     <p>If the Save button is active, the SDK connected successfully.</p>
 
-    <!-- Added input field for user URL -->
-    <label for="userUrl">Enter Tab URL:</label>
-    <input type="text" id="userUrl" placeholder="https://yoururl.com" style="width: 300px;">
+    <!-- Added input field for dynamic URL -->
+    <label for="tabUrl">Enter Tab URL:</label>
+    <input type="text" id="tabUrl" placeholder="https://yoururl.com" style="width: 300px;">
 </body>
 </html>
