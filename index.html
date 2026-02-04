@@ -3,7 +3,12 @@
 <head>
     <script src="https://res.cdn.office.net/teams-js/2.19.0/js/MicrosoftTeams.min.js"></script>
     <script>
-        // Wait until the page is fully loaded
+        // Helper function to get query params
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
         window.onload = function () {
             // 1. Initialize the Teams SDK
             microsoftTeams.app.initialize().then(() => {
@@ -11,12 +16,17 @@
                 // 2. Enable the Save button
                 microsoftTeams.pages.config.setValidityState(true);
 
-                // 3. Register the save handler
+                // 3. Determine URLs dynamically
+                const baseUrl = getQueryParam("baseUrl") || "https://sandboxqa.concept.theloops.ai"; 
+                const contentUrl = `${baseUrl}/login`;
+                const websiteUrl = `${baseUrl}/login`;
+
+                // 4. Register the save handler
                 microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
                     microsoftTeams.pages.config.setConfig({
                         entityId: "helloWorldTab",
-                        contentUrl: "https://sandboxqa.concept.theloops.ai/login",
-                        websiteUrl: "https://sandboxqa.concept.theloops.ai/login",
+                        contentUrl: contentUrl,
+                        websiteUrl: websiteUrl,
                         suggestedDisplayName: "HITL Dashboard"
                     }).then(() => {
                         // Notify Teams that the save is complete
