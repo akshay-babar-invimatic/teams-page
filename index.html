@@ -13,10 +13,13 @@
 
                 // 3. Register the save handler
                 microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
+                    // Get URL from input field
+                    const userUrl = document.getElementById("userUrl").value || "https://sandboxqa.concept.theloops.ai/login";
+
                     microsoftTeams.pages.config.setConfig({
                         entityId: "helloWorldTab",
-                        contentUrl: "https://sandboxqa.concept.theloops.ai/login",
-                        websiteUrl: "https://sandboxqa.concept.theloops.ai/login",
+                        contentUrl: userUrl,
+                        websiteUrl: userUrl,
                         suggestedDisplayName: "HITL Dashboard"
                     }).then(() => {
                         // Notify Teams that the save is complete
@@ -36,5 +39,9 @@
 <body>
     <h3>Configuration Page Loaded</h3>
     <p>If the Save button is active, the SDK connected successfully.</p>
+
+    <!-- Added input field for user URL -->
+    <label for="userUrl">Enter Tab URL:</label>
+    <input type="text" id="userUrl" placeholder="https://yoururl.com" style="width: 300px;">
 </body>
 </html>
