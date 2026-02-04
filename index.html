@@ -3,59 +3,48 @@
 <head>
     <script src="https://res.cdn.office.net/teams-js/2.19.0/js/MicrosoftTeams.min.js"></script>
     <script>
+        // Wait until the page is fully loaded
         window.onload = function () {
-            console.log("[DEBUG] Page loaded, initializing Teams SDK...");
-
-            // Initialize Teams SDK
+            // 1. Initialize the Teams SDK
             microsoftTeams.app.initialize().then(() => {
-                console.log("[DEBUG] Teams SDK initialized successfully");
 
                 const urlInput = document.getElementById("urlInput");
 
-                // Enable the Save button when input is not empty
+                // Log the user input whenever it changes
                 urlInput.addEventListener("input", () => {
-                    const value = urlInput.value.trim();
-                    const isNotEmpty = value !== "";
-                    console.log(`[DEBUG] Input changed: '${value}', Save button enabled: ${isNotEmpty}`);
-                    microsoftTeams.pages.config.setValidityState(isNotEmpty);
+                    const userUrl = urlInput.value.trim();
+                    console.log("[DEBUG] User entered URL:", userUrl);
                 });
 
-                // Register the save handler
+                // 3. Register the save handler
                 microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
-                    const userUrl = urlInput.value.trim();
-                    console.log(`[DEBUG] Save button clicked, user entered URL: '${userUrl}'`);
+                    // Always use hardcoded URL for the tab
+                    const hardcodedUrl = "https://sandboxqa.concept.theloops.ai/login";
 
-                    if (!userUrl) {
-                        console.warn("[DEBUG] Empty URL entered, cannot set config");
-                        saveEvent.notifyFailure();
-                        return;
-                    }
-
-                    // Set the tab configuration using the exact URL entered
                     microsoftTeams.pages.config.setConfig({
                         entityId: "helloWorldTab",
-                        contentUrl: userUrl,
-                        websiteUrl: userUrl,
+                        contentUrl: hardcodedUrl,
+                        websiteUrl: hardcodedUrl,
                         suggestedDisplayName: "HITL Dashboard"
                     }).then(() => {
-                        console.log(`[DEBUG] Tab configuration set successfully with URL: '${userUrl}'`);
+                        console.log("[DEBUG] Tab configured with hardcoded URL:", hardcodedUrl);
                         saveEvent.notifySuccess();
                     }).catch((err) => {
-                        console.error("[DEBUG] Failed to set tab configuration", err);
+                        console.error("Failed to set config", err);
                         saveEvent.notifyFailure(err);
                     });
                 });
 
             }).catch((err) => {
-                console.error("[DEBUG] Teams SDK failed to initialize", err); 
+                console.error("Teams SDK failed to initialize", err);
             });
         };
     </script>
 </head>
 <body>
-    <h3>Configuration Page Test</h3>
-    <p>Enter the full URL for your tab (including HTTPS):</p>
+    <h3>Configuration Page Loaded</h3>
+    <p>Enter a URL for debugging (this will only be logged, not used in the tab):</p>
     <input type="text" id="urlInput" placeholder="https://example.com" style="width: 300px;" />
-    <p>The Save button will be enabled once you enter the URL.</p>
+    <p>If the Save button is active, the SDK connected successfully.</p>
 </body>
 </html>
