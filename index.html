@@ -3,35 +3,23 @@
 <head>
     <script src="https://res.cdn.office.net/teams-js/2.19.0/js/MicrosoftTeams.min.js"></script>
     <script>
+        // Wait until the page is fully loaded
         window.onload = function () {
-            console.log("[DEBUG] Page loaded, initializing Teams SDK...");
-
+            // 1. Initialize the Teams SDK
             microsoftTeams.app.initialize().then(() => {
-                console.log("[DEBUG] Teams SDK initialized successfully");
-
-                const urlInput = document.getElementById("urlInput");
-
-                // Enable the Save button immediately since we are using hardcoded URL
+                
+                // 2. Enable the Save button
                 microsoftTeams.pages.config.setValidityState(true);
-                console.log("[DEBUG] Save button enabled");
 
-                // Log the user input whenever it changes
-                urlInput.addEventListener("input", () => {
-                    const userUrl = urlInput.value.trim();
-                    console.log("[DEBUG] User entered URL (for logging only):", userUrl);
-                });
-
-                // Register the save handler
+                // 3. Register the save handler
                 microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
-                    const hardcodedUrl = "https://sandboxqa.concept.theloops.ai/login";
-
                     microsoftTeams.pages.config.setConfig({
                         entityId: "helloWorldTab",
-                        contentUrl: hardcodedUrl,
-                        websiteUrl: hardcodedUrl,
+                        contentUrl: "https://sandboxqa.concept.theloops.ai/login",
+                        websiteUrl: "https://sandboxqa.concept.theloops.ai/login",
                         suggestedDisplayName: "HITL Dashboard"
                     }).then(() => {
-                        console.log("[DEBUG] Tab configured with hardcoded URL:", hardcodedUrl);
+                        // Notify Teams that the save is complete
                         saveEvent.notifySuccess();
                     }).catch((err) => {
                         console.error("Failed to set config", err);
@@ -40,15 +28,13 @@
                 });
 
             }).catch((err) => {
-                console.error("[DEBUG] Teams SDK failed to initialize", err);
+                console.error("Teams SDK failed to initialize", err);
             });
         };
     </script>
 </head>
 <body>
-    <h3>Configuration Page Loaded-1</h3>
-    <p>Enter a URL for debugging (this will only be logged, not used in the tab):</p>
-    <input type="text" id="urlInput" placeholder="https://example.com" style="width: 300px;" />
+    <h3>Configuration Page Loaded</h3>
     <p>If the Save button is active, the SDK connected successfully.</p>
 </body>
 </html>
