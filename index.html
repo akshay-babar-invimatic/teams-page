@@ -1,54 +1,72 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8" />
+    <title>Agent Summary</title>
+
     <script src="https://res.cdn.office.net/teams-js/2.19.0/js/MicrosoftTeams.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #ffffff;
+            color: #111827;
+        }
+
+        .container {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            text-align: center;
+            padding: 24px 28px;
+        }
+
+        h4 {
+            margin: 0 0 6px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        p {
+            margin: 0;
+            font-size: 12px;
+            color: #6b7280;
+        }
+    </style>
+
     <script>
-        // Wait until the page is fully loaded
         window.onload = function () {
-            console.log("Page loaded"); // log when page loads
-
-            // 1. Initialize the Teams SDK
             microsoftTeams.app.initialize().then(() => {
-                console.log("Teams SDK initialized successfully"); // log after initialization
-                
-                // 2. Enable the Save button
                 microsoftTeams.pages.config.setValidityState(true);
-                console.log("Save button enabled"); // log when save button enabled
 
-                // 3. Register the save handler
                 microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
-                    console.log("Save button clicked"); // log when save clicked
-
-                    // Get URL dynamically from the input field
-                    const userUrl = document.getElementById("tabUrl").value || "https://sandboxqa.concept.theloops.ai/login";
-                    console.log("URL entered by user:", userUrl); // log user URL
-
                     microsoftTeams.pages.config.setConfig({
-                        entityId: "helloWorldTab",
-                        contentUrl: userUrl,
-                        websiteUrl: userUrl,
-                        suggestedDisplayName: "HITL Dashboard"
+                        entityId: "agentSummaryTab",
+                        contentUrl: "https://sandboxqa.concept.theloops.ai/login",
+                        websiteUrl: "https://sandboxqa.concept.theloops.ai/login",
+                        suggestedDisplayName: "Agent Summary"
                     }).then(() => {
-                        console.log("Teams config set successfully"); // log success
                         saveEvent.notifySuccess();
                     }).catch((err) => {
-                        console.error("Failed to set config", err); // log error
                         saveEvent.notifyFailure(err);
                     });
                 });
-
-            }).catch((err) => {
-                console.error("Teams SDK failed to initialize", err); // log initialization error
             });
         };
     </script>
 </head>
-<body>
-    <h3>Page Loaded Test</h3>
-    <p>If the Save button is active, the SDK connected successfully.</p>
 
-    <!-- Added input field for dynamic URL -->
-    <label for="tabUrl">Enter Tab URL:</label>
-    <input type="text" id="tabUrl" placeholder="https://yoururl.com" style="width: 300px;">
+<body>
+    <div class="container">
+        <div class="card">
+            <h4>Agent Summary</h4>
+            <p>Preparing tab configuration</p>
+        </div>
+    </div>
 </body>
 </html>
