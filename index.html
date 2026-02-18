@@ -42,6 +42,13 @@
     <script>
         window.onload = function () {
             microsoftTeams.app.initialize().then(() => {
+                
+                microsoftTeams.app.getContext().then((context) => {
+                console.log("Full Teams Context:", context);
+                console.log("User Info:", context.user);
+                console.log("User JSON:", JSON.stringify(context.user, null, 2));
+            });
+                
                 microsoftTeams.pages.config.setValidityState(true);
 
                 microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
