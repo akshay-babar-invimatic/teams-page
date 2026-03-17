@@ -1,14 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
-    <title>Agent Summary</title> 
-    <!-- Polyfill: browsers don't have Node's `global`; some libs expect it -->
-    <script>(function(g){if(typeof g.global==='undefined')g.global=g;})(typeof window!=='undefined'?window:self);</script>
-    <base href="/" />
-
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <title>Agent Summary - 1</title>
 
     <script src="https://res.cdn.office.net/teams-js/2.45.0/js/MicrosoftTeams.min.js"></script>
 
@@ -43,57 +37,80 @@
             font-size: 12px;
             color: #6b7280;
         }
+
+        /* Scrollable JSON popup */
+        #jsonPopup {
+            display: none;
+            position: fixed;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            background: #fff;
+            border: 1px solid #000;
+            z-index: 1000;
+            padding: 10px;
+            overflow: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        #jsonPopup button {
+            margin-bottom: 10px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
     </style>
 
     <script>
         window.onload = function () {
-            // Check if we're in a Teams iframe before attempting initialization
+            microsoftTeams.app.initialize().then(() => {
 
-            if (window.microsoftTeams && window.microsoftTeams.app) {
-                microsoftTeams.app.initialize().then(() => {
+                microsoftTeams.app.getContext().then((context) => {
+                    console.log("Full Teams Context:", context);
 
-                    microsoftTeams.app.getContext().then((context) => {
-                        console.log("Full Teams Context:", context);
-                        console.log("User Info:", context.user);
-                        console.log("User JSON:", JSON.stringify(context.user, null, 2));
-                    }).catch((err) => {
-                        console.log('Could not get Teams context - running outside Teams environment');
-                    });
-
-                    if (microsoftTeams.pages && microsoftTeams.pages.config) {
-                        microsoftTeams.pages.config.setValidityState(true);
-
-                        microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
-                            // Concept base URL
-                            var baseUrl = 'https://sandboxqa.concept.theloops.ai'.replace(/\/$/, '');
-                            microsoftTeams.pages.config.setConfig({
-                                entityId: "agentSummaryTab",
-                                contentUrl: baseUrl,
-                                websiteUrl: baseUrl + "/",
-                                suggestedDisplayName: "Agent Homepage"
-                            }).then(() => {
-                                saveEvent.notifySuccess();
-                            }).catch((err) => {
-                                saveEvent.notifyFailure(err);
-                            });
-                        });
-                    }
-                }).catch((err) => {
-                    // Handle initialization errors gracefully
-                    const errorMsg = err && err.message ? err.message.toLowerCase() : String(err).toLowerCase();
-                    if (errorMsg.includes('no parent window') ||
-                        errorMsg.includes('initialization failed') ||
-                        errorMsg.includes('parent window')) {
-                        console.log('Not running in Microsoft Teams environment - this is normal for local development');
-                    } else {
-                        console.error('Error initializing Teams SDK:', err);
-                    }
+                    // Show JSON in scrollable popup
+                    const popup = document.getElementById('jsonPopup');
+                    const content = document.getElementById('jsonContent');
+                    content.textContent = JSON.stringify(context, null, 2);
+                    popup.style.display = 'block';
                 });
-            }
+
+                microsoftTeams.pages.config.setValidityState(true);
+
+                microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
+                    microsoftTeams.pages.config.setConfig({
+                        entityId: "agentSummaryTab",
+                        contentUrl: "https://sandboxqa.concept.theloops.ai/login",
+                        websiteUrl: "https://sandboxqa.concept.theloops.ai/login",
+                        suggestedDisplayName: "Agent Summary"
+                    }).then(() => {
+                        saveEvent.notifySuccess();
+                    }).catch((err) => {
+                        saveEvent.notifyFailure(err);
+                    });
+                });
+            });
         };
     </script>
-  </head>
-  <body>
-    <div id="root">Test</div>
-  </body>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h4>Agent Summary</h4>
+            <p>Preparing tab configuration</p>
+        </div>
+    </div>
+
+    <!-- Scrollable JSON popup -->
+    <div id="jsonPopup">
+        <button onclick="document.getElementById('jsonPopup').style.display='none'">Close</button>
+        <pre id="jsonContent"></pre>
+    </div>
+</body>
 </html>
