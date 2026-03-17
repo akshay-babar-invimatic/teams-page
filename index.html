@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Agent Summary</title> 
+    <title>Agent Summary</title>
     <!-- Polyfill: browsers don't have Node's `global`; some libs expect it -->
     <script>(function(g){if(typeof g.global==='undefined')g.global=g;})(typeof window!=='undefined'?window:self);</script>
     <base href="/" />
@@ -48,10 +48,6 @@
     <script>
         window.onload = function () {
             // Check if we're in a Teams iframe before attempting initialization
-            if (window.parent === window) {
-                console.log('Not running in Teams iframe - skipping Teams initialization');
-                return;
-            }
 
             if (window.microsoftTeams && window.microsoftTeams.app) {
                 microsoftTeams.app.initialize().then(() => {
@@ -69,7 +65,7 @@
 
                         microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
                             // Concept base URL
-                            var baseUrl = 'https://agenthomepage.concept.theloops.ai'.replace(/\/$/, '');
+                            var baseUrl = 'https://sandboxqa.concept.theloops.ai'.replace(/\/$/, '');
                             microsoftTeams.pages.config.setConfig({
                                 entityId: "agentSummaryTab",
                                 contentUrl: baseUrl,
