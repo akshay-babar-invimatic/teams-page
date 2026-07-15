@@ -2,7 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Agent Summary - 1 </title>
+    <title>Teams Tab Configuration Test</title>
+
+    <!-- Polyfill -->
+    <script>
+        (function(g) {
+            if (typeof g.global === 'undefined') g.global = g;
+        })(typeof window !== 'undefined' ? window : self);
+    </script>
+
+    <base href="/">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <script src="https://res.cdn.office.net/teams-js/2.45.0/js/MicrosoftTeams.min.js"></script>
 
@@ -10,107 +20,116 @@
         body {
             margin: 0;
             font-family: "Segoe UI", Arial, sans-serif;
-            background: #ffffff;
-            color: #111827;
-        }
-
-        .container {
-            height: 100vh;
             display: flex;
-            align-items: center;
             justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #ffffff;
         }
 
         .card {
             text-align: center;
-            padding: 24px 28px;
+            padding: 24px;
         }
 
-        h4 {
-            margin: 0 0 6px;
-            font-size: 15px;
-            font-weight: 600;
+        h3 {
+            margin-bottom: 8px;
         }
 
         p {
-            margin: 0;
-            font-size: 12px;
-            color: #6b7280;
-        }
-
-        /* Scrollable JSON popup */
-        #jsonPopup {
-            display: none;
-            position: fixed;
-            top: 10%;
-            left: 10%;
-            width: 80%;
-            height: 80%;
-            background: #fff;
-            border: 1px solid #000;
-            z-index: 1000;
-            padding: 10px;
-            overflow: auto;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-        }
-
-        #jsonPopup button {
-            margin-bottom: 10px;
-            padding: 5px 10px;
-            cursor: pointer;
-        }
-
-        pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            color: #666;
         }
     </style>
 
     <script>
         window.onload = function () {
-            microsoftTeams.app.initialize().then(() => {
 
-                microsoftTeams.app.getContext().then((context) => {
-                    console.log("Full Teams Context:", context);
+            console.log("Page Loaded");
 
-                    // Show JSON in scrollable popup
-                    const popup = document.getElementById('jsonPopup');
-                    const content = document.getElementById('jsonContent');
-                    content.textContent = JSON.stringify(context, null, 2);
-                    popup.style.display = 'block';
-                });
+            // Skip if opened directly in browser
+            if (window.parent === window) {
+                console.log("Not inside Teams iframe.");
+                return;
+            }
 
-                microsoftTeams.pages.config.setValidityState(true);
+            if (window.microsoftTeams && window.microsoftTeams.app) {
 
-                microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
-                    microsoftTeams.pages.config.setConfig({
-                        entityId: "agentSummaryTab",
-                        contentUrl: "https://akshay-babar-invimatic.github.io/teams-page/",
-                        websiteUrl: "https://akshay-babar-invimatic.github.io/teams-page/",
-                        suggestedDisplayName: "Agent Summary"
-                    }).then(() => {
-                        saveEvent.notifySuccess();
-                    }).catch((err) => {
-                        saveEvent.notifyFailure(err);
+                microsoftTeams.app.initialize()
+                    .then(() => {
+
+                        console.log("Teams SDK Initialized");
+
+                        return microsoftTeams.app.getContext();
+
+                    })
+                    .then((context) => {
+
+                        console.log("Teams Context:", context);
+                        console.log("Frame Context:", context.page?.frameContext);
+
+                        if (
+                            context.page &&
+                            context.page.frameContext === "settings" &&
+                            microsoftTeams.pages &&
+                            microsoftTeams.pages.config
+                        ) {
+
+                            console.log("Registering Save Handler");
+
+                            microsoftTeams.pages.config.setValidityState(true);
+
+                            microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
+
+                                console.log("Save button clicked");
+
+                                // Replace with your hosted URL
+                                var baseUrl = "https://agenthomepage.concept.theloops.ai";
+
+                                microsoftTeams.pages.config.setConfig({
+                                    entityId: "sampleTab",
+                                    suggestedDisplayName: "Sample Tab",
+                                    contentUrl: baseUrl,
+                                    websiteUrl: baseUrl + "/"
+                                })
+                                .then(() => {
+                                    console.log("setConfig SUCCESS");
+                                    saveEvent.notifySuccess();
+                                })
+                                .catch((err) => {
+                                    console.error("setConfig FAILED", err);
+                                    saveEvent.notifyFailure(err.message || JSON.stringify(err));
+                                });
+
+                            });
+
+                        } else {
+
+                            console.log("Content context. Skipping configuration.");
+
+                        }
+
+                    })
+                    .catch((err) => {
+                        console.error("Teams SDK Error:", err);
                     });
-                });
-            });
+
+            } else {
+
+                console.error("Teams SDK not found.");
+
+            }
+
         };
     </script>
+
 </head>
 
 <body>
-    <div class="container">
-        <div class="card">
-            <h4>Agent Summary</h4>
-            <p>Preparing tab configuration</p>
-        </div>
-    </div>
 
-    <!-- Scrollable JSON popup -->
-    <div id="jsonPopup">
-        <button onclick="document.getElementById('jsonPopup').style.display='none'">Close</button>
-        <pre id="jsonContent"></pre>
-    </div>
+<div class="card">
+    <h3>Teams Tab Configuration Test</h3>
+    <p>Open the browser console to view logs.</p>
+</div>
+
 </body>
 </html>
