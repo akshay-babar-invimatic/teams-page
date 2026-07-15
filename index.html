@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Teams Tab Configuration Test</title>
+    <title>Agent Summary</title>
 
-    <!-- Polyfill -->
+    <!-- Polyfill: browsers don't have Node's `global`; some libs expect it -->
     <script>
-        (function(g) {
+        (function (g) {
             if (typeof g.global === 'undefined') g.global = g;
         })(typeof window !== 'undefined' ? window : self);
     </script>
@@ -20,59 +20,73 @@
         body {
             margin: 0;
             font-family: "Segoe UI", Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
             background: #ffffff;
+            color: #111827;
+        }
+
+        .container {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .card {
             text-align: center;
-            padding: 24px;
+            padding: 24px 28px;
+            width: 80%;
         }
 
-        h3 {
-            margin-bottom: 8px;
+        h4 {
+            margin: 0 0 6px;
+            font-size: 18px;
+            font-weight: 600;
         }
 
         p {
-            color: #666;
+            margin: 0 0 20px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        pre {
+            text-align: left;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 12px;
+            max-height: 350px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
     </style>
 
     <script>
         window.onload = function () {
 
-            console.log("Page Loaded");
-
-            // Skip if opened directly in browser
+            // Check if we're in a Teams iframe before attempting initialization
             if (window.parent === window) {
-                console.log("Not inside Teams iframe.");
+                console.log("Not running in Teams iframe - skipping Teams initialization");
                 return;
             }
 
             if (window.microsoftTeams && window.microsoftTeams.app) {
 
-                microsoftTeams.app.initialize()
-                    .then(() => {
+                microsoftTeams.app.initialize().then(() => {
 
-                        console.log("Teams SDK Initialized");
+                    console.log("Teams SDK initialized");
 
-                        return microsoftTeams.app.getContext();
+                    microsoftTeams.app.getContext().then((context) => {
 
-                    })
-                    .then((context) => {
-
-                        console.log("Teams Context:", context);
+                        console.log("Full Teams Context:", context);
+                        console.log("User Info:", context.user);
+                        console.log("User JSON:", JSON.stringify(context.user, null, 2));
                         console.log("Frame Context:", context.page?.frameContext);
 
-                        if (
-                            context.page &&
-                            context.page.frameContext === "settings" &&
-                            microsoftTeams.pages &&
-                            microsoftTeams.pages.config
-                        ) {
+                        document.getElementById("context").textContent =
+                            JSON.stringify(context, null, 2);
+
+                        if (context.page && context.page.frameContext === "settings" && microsoftTeams.pages && microsoftTeams.pages.config) {
 
                             console.log("Registering Save Handler");
 
@@ -82,43 +96,59 @@
 
                                 console.log("Save button clicked");
 
-                                // Replace with your hosted URL
-                                var baseUrl = "https://agenthomepage.concept.theloops.ai";
+                                // Replace with your GitHub Pages URL
+                                var baseUrl = "https://YOUR_GITHUB_USERNAME.github.io/YOUR_REPOSITORY".replace(/\/$/, "");
+
+                                console.log("Base URL:", baseUrl);
 
                                 microsoftTeams.pages.config.setConfig({
-                                    entityId: "sampleTab",
-                                    suggestedDisplayName: "Sample Tab",
+                                    entityId: "agentSummaryTab",
                                     contentUrl: baseUrl,
-                                    websiteUrl: baseUrl + "/"
-                                })
-                                .then(() => {
+                                    websiteUrl: baseUrl + "/",
+                                    suggestedDisplayName: "Agent Homepage"
+                                }).then(() => {
+
                                     console.log("setConfig SUCCESS");
                                     saveEvent.notifySuccess();
-                                })
-                                .catch((err) => {
-                                    console.error("setConfig FAILED", err);
-                                    saveEvent.notifyFailure(err.message || JSON.stringify(err));
+
+                                }).catch((err) => {
+
+                                    console.error("setConfig FAILED:", err);
+                                    saveEvent.notifyFailure(err?.message || JSON.stringify(err));
+
                                 });
 
                             });
 
                         } else {
 
-                            console.log("Content context. Skipping configuration.");
+                            console.log("Skipping config code in content context");
 
                         }
 
-                    })
-                    .catch((err) => {
-                        console.error("Teams SDK Error:", err);
+                    }).catch((err) => {
+
+                        console.log("Could not get Teams context:", err);
+
                     });
 
-            } else {
+                }).catch((err) => {
 
-                console.error("Teams SDK not found.");
+                    const errorMsg = err && err.message ? err.message.toLowerCase() : String(err).toLowerCase();
+
+                    if (errorMsg.includes("no parent window") || errorMsg.includes("initialization failed") || errorMsg.includes("parent window")) {
+
+                        console.log("Not running in Microsoft Teams environment - this is normal for local development");
+
+                    } else {
+
+                        console.error("Error initializing Teams SDK:", err);
+
+                    }
+
+                });
 
             }
-
         };
     </script>
 
@@ -126,9 +156,15 @@
 
 <body>
 
-<div class="card">
-    <h3>Teams Tab Configuration Test</h3>
-    <p>Open the browser console to view logs.</p>
+<div class="container">
+    <div class="card">
+        <h4>Agent Summary</h4>
+        <p>Teams Tab Configuration Test</p>
+
+        <pre id="context">
+Waiting for Teams context...
+        </pre>
+    </div>
 </div>
 
 </body>
