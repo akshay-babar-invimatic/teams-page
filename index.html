@@ -1,18 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Agent Summary</title>
-
-    <!-- Polyfill: browsers don't have Node's `global`; some libs expect it -->
-    <script>
-        (function (g) {
-            if (typeof g.global === 'undefined') g.global = g;
-        })(typeof window !== 'undefined' ? window : self);
-    </script>
-
-    <base href="/">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Configure Teams Tab</title>
 
     <script src="https://res.cdn.office.net/teams-js/2.45.0/js/MicrosoftTeams.min.js"></script>
 
@@ -25,148 +17,221 @@
         }
 
         .container {
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
         .card {
-            text-align: center;
-            padding: 24px 28px;
             width: 80%;
+            max-width: 600px;
+            padding: 24px;
         }
 
-        h4 {
-            margin: 0 0 6px;
-            font-size: 18px;
-            font-weight: 600;
+        h2 {
+            margin: 0 0 8px;
+            font-size: 20px;
         }
 
         p {
-            margin: 0 0 20px;
-            font-size: 13px;
             color: #6b7280;
+            font-size: 14px;
+        }
+
+        label {
+            display: block;
+            margin: 20px 0 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #9ca3af;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            margin-top: 16px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background: #5b5fc7;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #4649a8;
+        }
+
+        .error {
+            color: #b91c1c;
+        }
+
+        .hidden {
+            display: none;
         }
 
         pre {
-            text-align: left;
+            padding: 12px;
             background: #f5f5f5;
             border: 1px solid #ddd;
-            padding: 12px;
-            max-height: 350px;
-            overflow: auto;
             white-space: pre-wrap;
-            word-break: break-word;
+            overflow-wrap: anywhere;
         }
     </style>
-
-    <script>
-        window.onload = function () {
-
-            // Check if we're in a Teams iframe before attempting initialization
-            if (window.parent === window) {
-                console.log("Not running in Teams iframe - skipping Teams initialization");
-                return;
-            }
-
-            if (window.microsoftTeams && window.microsoftTeams.app) {
-                console.log("Hello");
-
-                microsoftTeams.app.initialize().then(() => {
-
-                    console.log("Teams SDK initialized");
-
-                    microsoftTeams.app.getContext().then((context) => {
-
-                        console.log("Full Teams Context:", context);
-                        console.log("User Info:", context.user);
-                        console.log("User JSON:", JSON.stringify(context.user, null, 2));
-                        console.log("Frame Context:", context.page?.frameContext);
-
-                        document.getElementById("context").textContent =
-                            JSON.stringify(context, null, 2);
-
-                        if (context.page && context.page.frameContext === "settings" && microsoftTeams.pages && microsoftTeams.pages.config) {
-
-                            console.log("Registering Save Handler");
-
-                            microsoftTeams.pages.config.setValidityState(true);
-
-                            microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
-
-                                console.log("Save button clicked");
-
-                                // Replace with your GitHub Pages URL
-                                var baseUrl = "https://jsonappruntime.concept.theloops.ai/a/1791262994640-8736".replace(/\/$/, "");
-
-                                console.log("Base URL:", baseUrl);
-
-                                microsoftTeams.pages.config.setConfig({
-                                    entityId: "agentSummaryTab",
-                                    contentUrl: baseUrl,
-                                    websiteUrl: baseUrl + "/",
-                                    suggestedDisplayName: "Agent Homepage"
-                                }).then(() => {
-
-                                    console.log("setConfig SUCCESS");
-                                    saveEvent.notifySuccess();
-
-                                }).catch((err) => {
-
-                                    console.error("setConfig FAILED:", err);
-                                    saveEvent.notifyFailure(err?.message || JSON.stringify(err));
-
-                                });
-
-                            });
-
-                        } else {
-
-                            console.log("Skipping config code in content context");
-
-                        }
-
-                    }).catch((err) => {
-
-                        console.log("Could not get Teams context:", err);
-
-                    });
-
-                }).catch((err) => {
-
-                    const errorMsg = err && err.message ? err.message.toLowerCase() : String(err).toLowerCase();
-
-                    if (errorMsg.includes("no parent window") || errorMsg.includes("initialization failed") || errorMsg.includes("parent window")) {
-
-                        console.log("Not running in Microsoft Teams environment - this is normal for local development");
-
-                    } else {
-
-                        console.error("Error initializing Teams SDK:", err);
-
-                    }
-
-                });
-
-            }
-        };
-    </script>
-
 </head>
 
 <body>
-
 <div class="container">
     <div class="card">
-        <h4>Agent Summary</h4>
-        <p>Teams Tab Configuration Test</p>
 
-        <pre id="context">
-Waiting for Teams context...
-        </pre>
+        <!-- Teams tab configuration view -->
+        <section id="configureView" class="hidden">
+            <h2>Configure Website Tab</h2>
+            <p>Enter the Content URL you want to display inside this Teams tab.</p>
+
+            <form id="configForm">
+                <label for="contentUrl">Content URL</label>
+
+                <input
+                    id="contentUrl"
+                    type="text"
+                    placeholder="Enter Content URL"
+                    autocomplete="url"
+                    required
+                />
+
+                <p id="errorMessage" class="error"></p>
+
+                <button type="submit">Save</button>
+            </form>
+        </section>
+
+        <!-- Normal Teams tab view -->
+        <section id="contentView" class="hidden">
+            <h2>Agent Summary</h2>
+            <p>Your Teams tab has been configured.</p>
+            <pre id="context">Loading Teams context...</pre>
+        </section>
+
+        <!-- Opened outside Teams -->
+        <section id="browserView" class="hidden">
+            <h2>Configure Teams Tab</h2>
+            <p>Open this page inside Microsoft Teams to configure the tab.</p>
+        </section>
+
     </div>
 </div>
 
+<script>
+(async function () {
+    const configureView = document.getElementById("configureView");
+    const contentView = document.getElementById("contentView");
+    const browserView = document.getElementById("browserView");
+
+    const contentUrlInput = document.getElementById("contentUrl");
+    const configForm = document.getElementById("configForm");
+    const errorMessage = document.getElementById("errorMessage");
+    const contextOutput = document.getElementById("context");
+
+    function showView(view) {
+        configureView.classList.add("hidden");
+        contentView.classList.add("hidden");
+        browserView.classList.add("hidden");
+
+        view.classList.remove("hidden");
+    }
+
+    // Check whether the Teams SDK is available.
+    if (!window.microsoftTeams || !window.microsoftTeams.app) {
+        showView(browserView);
+        return;
+    }
+
+    try {
+        // Initialize Teams SDK.
+        await microsoftTeams.app.initialize();
+
+        // Get the current Teams context.
+        const context = await microsoftTeams.app.getContext();
+
+        console.log("Teams context:", context);
+
+        contextOutput.textContent = JSON.stringify(context, null, 2);
+
+        // Configuration mode: Teams is adding/configuring the tab.
+        if (context.page?.frameContext === "settings") {
+            showView(configureView);
+
+            // Enable Save only when a URL is entered.
+            microsoftTeams.pages.config.setValidityState(false);
+
+            contentUrlInput.addEventListener("input", () => {
+                const isValid = contentUrlInput.value.trim().length > 0;
+
+                microsoftTeams.pages.config.setValidityState(isValid);
+                errorMessage.textContent = "";
+            });
+
+            // Handle the Save action from Teams.
+            microsoftTeams.pages.config.registerOnSaveHandler(
+                async (saveEvent) => {
+                    try {
+                        const contentUrl = contentUrlInput.value.trim();
+
+                        if (!contentUrl) {
+                            throw new Error("Please enter a Content URL.");
+                        }
+
+                        await microsoftTeams.pages.config.setConfig({
+                            entityId: "customUrlTab",
+                            contentUrl: contentUrl,
+                            websiteUrl: contentUrl,
+                            suggestedDisplayName: "Custom Website"
+                        });
+
+                        console.log("Teams tab configuration saved:", contentUrl);
+
+                        saveEvent.notifySuccess();
+                    } catch (error) {
+                        console.error("Failed to save tab configuration:", error);
+
+                        errorMessage.textContent =
+                            error.message || "Unable to save the configuration.";
+
+                        saveEvent.notifyFailure(errorMessage.textContent);
+                    }
+                }
+            );
+
+            // Also support submitting the form with Enter.
+            configForm.addEventListener("submit", (event) => {
+                event.preventDefault();
+
+                if (contentUrlInput.value.trim()) {
+                    microsoftTeams.pages.config.setValidityState(true);
+                }
+            });
+
+        } else {
+            // Normal tab content after Teams has saved the configuration.
+            showView(contentView);
+
+            console.log("Teams tab content context:", context);
+        }
+
+    } catch (error) {
+        console.error("Teams initialization failed:", error);
+        showView(browserView);
+    }
+})();
+</script>
 </body>
 </html>
