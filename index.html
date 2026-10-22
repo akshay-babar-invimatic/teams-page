@@ -109,7 +109,6 @@
 
                 <p id="errorMessage" class="error"></p>
 
-                <button type="submit">Save</button>
             </form>
         </section>
 
@@ -136,7 +135,6 @@
     const browserView = document.getElementById("browserView");
 
     const contentUrlInput = document.getElementById("contentUrl");
-    const configForm = document.getElementById("configForm");
     const errorMessage = document.getElementById("errorMessage");
     const contextOutput = document.getElementById("context");
 
@@ -190,7 +188,7 @@
                         }
 
                         await microsoftTeams.pages.config.setConfig({
-                            entityId: "customUrlTab",
+                            entityId: crypto.randomUUID(),
                             contentUrl: contentUrl,
                             websiteUrl: contentUrl,
                             suggestedDisplayName: "Custom Website"
@@ -210,14 +208,6 @@
                 }
             );
 
-            // Also support submitting the form with Enter.
-            configForm.addEventListener("submit", (event) => {
-                event.preventDefault();
-
-                if (contentUrlInput.value.trim()) {
-                    microsoftTeams.pages.config.setValidityState(true);
-                }
-            });
 
         } else {
             // Normal tab content after Teams has saved the configuration.
