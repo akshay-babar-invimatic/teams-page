@@ -14,225 +14,84 @@
             padding: 24px;
         }
 
+        .hidden {
+            display: none;
+        }
+
         button {
             padding: 10px 20px;
             cursor: pointer;
         }
-
-        button:disabled {
-            cursor: wait;
-        }
-
-        #authStatus {
-            margin-top: 16px;
-        }
     </style>
 </head>
 <body>
-    <h2>Agent Summary</h2>
-    <p>Sign in to authenticate with IFS Loops.</p>
+    <!-- Teams tab configuration mode -->
+    <section id="configView" class="hidden">
+        <h2>Configure Agent Summary</h2>
+        <label for="contentUrl">Content URL</label>
+        <input id="contentUrl" type="url" placeholder="https://example.com">
+        <button id="saveButton" type="button">Save</button>
+    </section>
 
-    <button id="signInButton" type="button" disabled>Sign in</button>
-    <p id="authStatus" role="status">Initializing...</p>
+    <!-- Normal tab view -->
+    <section id="contentView" class="hidden">
+        <h2>Agent Summary</h2>
+        <button id="signInButton" type="button">Sign in</button>
+        <p id="authStatus"></p>
+        <div id="renderedContent" class="hidden">
+            Your authenticated content will be rendered here.
+        </div>
+    </section>
 
     <script>
-        const CLIENT_ID = "YOUR_CLIENT_ID";
-
-        const AUTHORIZE_URL =
-            "https://newu-d01.build.ifsdemoworld.com/auth/realms/newud011/protocol/openid-connect/auth";
-
-        const TOKEN_URL =
-            "https://auth/realms/newud011/protocol/openid-connect/token";
-
-        const REDIRECT_URI = window.location.origin + window.location.pathname;
-
+        const configView = document.getElementById("configView");
+        const contentView = document.getElementById("contentView");
         const signInButton = document.getElementById("signInButton");
         const authStatus = document.getElementById("authStatus");
-
-        function randomString(length = 32) {
-            const bytes = crypto.getRandomValues(new Uint8Array(length));
-            return Array.from(bytes)
-                .map(byte => byte.toString(16).padStart(2, "0"))
-                .join("");
-        }
-
-        async function createCodeChallenge(verifier) {
-            const data = new TextEncoder().encode(verifier);
-            const digest = await crypto.subtle.digest("SHA-256", data);
-
-            return btoa(String.fromCharCode(...new Uint8Array(digest)))
-                .replace(/\+/g, "-")
-                .replace(/\//g, "_")
-                .replace(/=+$/, "");
-        }
-
-        async function startOAuth() {
-            const state = randomString();
-            const verifier = randomString();
-
-            localStorage.setItem("oauth.state", state);
-            localStorage.setItem("oauth.verifier", verifier);
-
-            const challenge = await createCodeChallenge(verifier);
-
-            const params = new URLSearchParams({
-                client_id: CLIENT_ID,
-                response_type: "code",
-                scope: "openid",
-                redirect_uri: REDIRECT_URI,
-                state: state,
-                code_challenge: challenge,
-                code_challenge_method: "S256"
-            });
-
-            // Run the OAuth flow in the Teams authentication popup.
-            const resultKey = await microsoftTeams.authentication.authenticate({
-                url: window.location.origin + window.location.pathname +
-                    "?oauthStart=1",
-                width: 600,
-                height: 535
-            });
-
-            const result = localStorage.getItem(resultKey);
-            localStorage.removeItem(resultKey);
-
-            if (!result) {
-                throw new Error("Authentication result not found.");
-            }
-
-            const tokenData = JSON.parse(result);
-
-            if (!tokenData.access_token) {
-                throw new Error("Access token was not returned.");
-            }
-
-            authStatus.textContent = "Sign-in successful.";
-            console.log("Authentication successful.");
-        }
-
-        async function handlePopup() {
-            const params = new URLSearchParams(window.location.search);
-
-            if (params.get("oauthStart") === "1") {
-                const state = randomString();
-                const verifier = randomString();
-
-                localStorage.setItem("oauth.state", state);
-                localStorage.setItem("oauth.verifier", verifier);
-
-                const challenge = await createCodeChallenge(verifier);
-
-                const oauthParams = new URLSearchParams({
-                    client_id: CLIENT_ID,
-                    response_type: "code",
-                    scope: "openid",
-                    redirect_uri: REDIRECT_URI,
-                    state: state,
-                    code_challenge: challenge,
-                    code_challenge_method: "S256"
-                });
-
-                // Redirect the popup to the identity provider.
-                window.location.replace(
-                    AUTHORIZE_URL + "?" + oauthParams.toString()
-                );
-                return true;
-            }
-
-            if (params.has("code") || params.has("error")) {
-                await microsoftTeams.app.initialize();
-
-                if (params.has("error")) {
-                    microsoftTeams.authentication.notifyFailure(
-                        params.get("error")
-                    );
-                    return true;
-                }
-
-                const code = params.get("code");
-                const returnedState = params.get("state");
-                const expectedState = localStorage.getItem("oauth.state");
-                const verifier = localStorage.getItem("oauth.verifier");
-
-                if (!code || returnedState !== expectedState || !verifier) {
-                    throw new Error("Invalid OAuth state or missing code.");
-                }
-
-                const response = await fetch(TOKEN_URL, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/x-www-form-urlencoded"
-                    },
-                    body: new URLSearchParams({
-                        grant_type: "authorization_code",
-                        client_id: CLIENT_ID,
-                        code: code,
-                        redirect_uri: REDIRECT_URI,
-                        code_verifier: verifier
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(
-                        "Token request failed: HTTP " + response.status
-                    );
-                }
-
-                const tokenData = await response.json();
-
-                if (!tokenData.access_token) {
-                    throw new Error("Access token not returned.");
-                }
-
-                localStorage.removeItem("oauth.state");
-                localStorage.removeItem("oauth.verifier");
-
-                const resultKey = "oauth.result." + crypto.randomUUID();
-                localStorage.setItem(resultKey, JSON.stringify(tokenData));
-
-                microsoftTeams.authentication.notifySuccess(resultKey);
-                return true;
-            }
-
-            return false;
-        }
+        const renderedContent = document.getElementById("renderedContent");
 
         async function initialize() {
-            try {
-                // Handle OAuth callback or popup startup first.
-                const isPopupFlow = await handlePopup();
+            await microsoftTeams.app.initialize();
+            const context = await microsoftTeams.app.getContext();
 
-                if (isPopupFlow) {
-                    signInButton.hidden = true;
-                    return;
-                }
-
-                await microsoftTeams.app.initialize();
-                signInButton.disabled = false;
-                authStatus.textContent = "Ready to sign in.";
-
-                signInButton.addEventListener("click", async () => {
-                    signInButton.disabled = true;
-                    authStatus.textContent = "Signing in...";
-
-                    try {
-                        await startOAuth();
-                    } catch (error) {
-                        console.error("Sign-in failed:", error);
-                        authStatus.textContent =
-                            "Sign-in failed. Check the OAuth configuration.";
-                    } finally {
-                        signInButton.disabled = false;
-                    }
-                });
-            } catch (error) {
-                console.error("Initialization or OAuth failed:", error);
-                authStatus.textContent =
-                    "Authentication failed. Check the browser console.";
+            if (context.page?.frameContext === "settings") {
+                // Configuration mode: do not show sign-in or rendering UI.
+                configView.classList.remove("hidden");
+                return;
             }
+
+            // Normal tab mode.
+            contentView.classList.remove("hidden");
+
+            signInButton.addEventListener("click", async () => {
+                signInButton.disabled = true;
+                authStatus.textContent = "Signing in...";
+
+                try {
+                    const result = await microsoftTeams.authentication.authenticate({
+                        url: window.location.origin +
+                            window.location.pathname +
+                            "?oauthStart=1",
+                        width: 600,
+                        height: 535
+                    });
+
+                    authStatus.textContent = "Sign-in successful.";
+                    renderedContent.classList.remove("hidden");
+
+                    console.log("Authentication result:", result);
+                } catch (error) {
+                    console.error("Sign-in failed:", error);
+                    authStatus.textContent = "Sign-in failed. Please try again.";
+                } finally {
+                    signInButton.disabled = false;
+                }
+            });
         }
 
-        initialize();
+        initialize().catch(error => {
+            console.error("Teams initialization failed:", error);
+        });
     </script>
 </body>
 </html>
