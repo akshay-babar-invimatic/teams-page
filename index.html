@@ -100,6 +100,8 @@
             <input id="contentIssuer" type="url" autocomplete="off" placeholder="https://your-ifs-host/auth/realms/your-realm" required />
             <label for="contentClientSecret">Client secret</label>
             <input id="contentClientSecret" type="password" autocomplete="off" placeholder="Required for a confidential IFS client" />
+            <label for="contentProxy">Token proxy URL</label>
+            <input id="contentProxy" type="url" autocomplete="off" placeholder="https://xxxx-8787.inc1.devtunnels.ms" />
             <p>Scope: <span id="contentScope"></span></p>
             <p>Redirect URL: <span id="contentRedirect"></span></p>
             <button id="signInButton" type="button">Sign in with IFS</button>
@@ -141,6 +143,7 @@
     const contentClientIdInput = document.getElementById("contentClientId");
     const contentIssuerInput = document.getElementById("contentIssuer");
     const contentClientSecretInput = document.getElementById("contentClientSecret");
+    const contentProxyInput = document.getElementById("contentProxy");
     // Held in memory for the token POST only. Never written to storage or the authorize URL.
     let pendingFlow = null;
     const errorMessage = document.getElementById("errorMessage");
@@ -293,6 +296,14 @@
         microsoftTeams.authentication.notifySuccess(JSON.stringify({ code: code, state: state }));
     }
 
+    function tokenRequestUrl(flow) {
+        if (!flow.proxy) return flow.token;
+        const proxy = new URL(flow.proxy);
+        if (proxy.protocol !== "https:") throw new Error("Token proxy URL must be the https dev tunnel address.");
+        proxy.searchParams.set("url", flow.token);
+        return proxy.toString();
+    }
+
     async function exchangeCode(flow, code) {
         const body = new URLSearchParams({
             grant_type: "authorization_code",
@@ -306,12 +317,22 @@
         if (flow.secret) body.set("client_secret", flow.secret);
         log("Requesting access token for client:", flow.clientId);
         log("Client secret included:", flow.secret ? "yes" : "no");
+        log("Token call via:", flow.proxy ? "dev tunnel proxy" : "IFS directly");
+        const endpoint = tokenRequestUrl(flow);
 
-        const tokenResponse = await fetch(flow.token, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: body.toString()
-        });
+        let tokenResponse;
+        try {
+            tokenResponse = await fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: body.toString()
+            });
+        } catch (error) {
+            const hint = flow.proxy
+                ? "The dev tunnel did not answer. Keep the proxy and devtunnel host running, then sign in again."
+                : "On client " + flow.clientId + ", set Web Origins to https://akshay-babar-invimatic.github.io";
+            throw new Error("The browser blocked the token response. " + hint);
+        }
         const tokenBody = await tokenResponse.json().catch(() => ({}));
         if (!tokenResponse.ok) {
             throw new Error(tokenBody.error_description || tokenBody.error || "TokenRequestFailed");
@@ -371,7 +392,8 @@
                 clientId: client.clientId,
                 issuer: client.issuer,
                 token: client.token,
-                secret: contentClientSecretInput.value
+                secret: contentClientSecretInput.value,
+                proxy: contentProxyInput.value.trim().replace(/\/+$/, "")
             };
             log("Opening Teams auth popup for client:", client.clientId);
 
