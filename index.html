@@ -1,225 +1,531 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Configure Teams Tab</title>
-
-    <script src="https://res.cdn.office.net/teams-js/2.45.0/js/MicrosoftTeams.min.js"></script>
-    <style>
-        body {
-            margin: 0;
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: #ffffff;
-            color: #111827;
-        }
-
-        .container {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .card {
-            width: 80%;
-            max-width: 600px;
-            padding: 24px;
-        }
-
-        h2 {
-            margin: 0 0 8px;
-            font-size: 20px;
-        }
-
-        p {
-            color: #6b7280;
-            font-size: 14px;
-        }
-
-        label {
-            display: block;
-            margin: 20px 0 8px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        input {
-            box-sizing: border-box;
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #9ca3af;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        button {
-            margin-top: 16px;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            background: #5b5fc7;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #4649a8;
-        }
-
-        .error {
-            color: #b91c1c;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        pre {
-            padding: 12px;
-            background: #f5f5f5;
-            border: 1px solid #ddd;
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IFS Cloud Teams tab test</title>
+  <script src="https://res.cdn.office.net/teams-js/2.34.0/js/MicrosoftTeams.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1b1a19;
+      --muted: #605e5c;
+      --line: #e1dfdd;
+      --paper: #ffffff;
+      --wash: #f3f2f1;
+      --accent: #0f6cbd;
+      --danger: #a4262c;
+      --ok: #0b6a0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.45 "Segoe UI", Calibri, sans-serif;
+      color: var(--ink);
+      background: var(--wash);
+    }
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+    }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    p { margin: 0 0 12px; }
+    .lede, .hint, .status { color: var(--muted); }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+    .warn {
+      background: #fff4ce;
+      border: 1px solid #fde7a0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 12px;
+    }
+    label { display: block; font-weight: 600; margin: 12px 0 4px; }
+    input {
+      width: 100%;
+      font: inherit;
+      padding: 8px 10px;
+      border: 1px solid #8a8886;
+      border-radius: 4px;
+    }
+    button {
+      font: inherit;
+      font-weight: 600;
+      color: white;
+      background: var(--accent);
+      border: 0;
+      border-radius: 4px;
+      padding: 8px 14px;
+      margin-top: 14px;
+      cursor: pointer;
+    }
+    button.secondary { background: #fff; color: var(--ink); border: 1px solid #8a8886; }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .error { color: var(--danger); white-space: pre-wrap; }
+    .ok { color: var(--ok); }
+    dl { margin: 0; }
+    dl div { display: grid; grid-template-columns: 160px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+    dt { color: var(--muted); }
+    dd { margin: 0; overflow-wrap: anywhere; }
+    pre {
+      margin: 8px 0 0;
+      padding: 10px;
+      background: var(--wash);
+      border-radius: 4px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 12px;
+    }
+    details { margin-top: 10px; }
+  </style>
 </head>
-
 <body>
-<div class="container">
-    <div class="card">
-
-        <!-- Teams tab configuration view -->
-        <section id="configureView" class="hidden">
-            <h2>Configure Website Tab</h2>
-            <p>Enter the Content URL you want to display inside this Teams tab.</p>
-
-            <form id="configForm">
-                <label for="contentUrl">Content URL</label>
-
-                <input
-                    id="contentUrl"
-                    type="text"
-                    placeholder="Enter Content URL"
-                    autocomplete="url"
-                    required
-                />
-
-                <p id="errorMessage" class="error"></p>
-
-            </form>
-        </section>
-
-        <!-- Normal Teams tab view -->
-        <section id="contentView" class="hidden">
-            <h2>Agent Summary</h2>
-            <p>Your Teams tab has been configured.</p>
-            <pre id="context">Loading Teams context...</pre>
-        </section>
-
-        <!-- Opened outside Teams -->
-        <section id="browserView" class="hidden">
-            <h2>Configure Teams Tab</h2>
-            <p>Open this page inside Microsoft Teams to configure the tab.</p>
-        </section>
-
+  <main>
+    <h1>IFS Cloud sign-in test</h1>
+    <p class="lede">A single page for a Microsoft Teams tab. It signs in to IFS Cloud with Authorization Code + PKCE and shows the token and the IFS login session.</p>
+    <div class="warn">
+      <strong>Test only.</strong> The access token is shown on this page. Anyone who can see it can call IFS as you until it expires. Use a test account. Do not put a client secret in this file.
     </div>
-</div>
 
-<script>
-(async function () {
-    const configureView = document.getElementById("configureView");
-    const contentView = document.getElementById("contentView");
-    const browserView = document.getElementById("browserView");
+    <section class="card" id="setup">
+      <h2>IFS public client</h2>
+      <p class="hint">These are not secrets. The issuer and client id must belong to a <em>public</em> OAuth client with PKCE S256. Register the redirect URL exactly as shown.</p>
+      <label for="issuer">Issuer URL</label>
+      <input id="issuer" autocomplete="off" placeholder="https://your-ifs-host/auth/realms/your-realm" />
+      <label for="clientId">Client ID</label>
+      <input id="clientId" autocomplete="off" placeholder="public-client-id" />
+      <label for="scopes">Scopes</label>
+      <input id="scopes" autocomplete="off" value="openid microprofile-jwt" />
+      <label for="redirectUri">Redirect URL (register this on the OAuth client)</label>
+      <input id="redirectUri" autocomplete="off" />
+      <p class="status" id="hostStatus">Checking whether this page is inside Teams…</p>
+      <div class="row">
+        <button type="button" id="signIn">Sign in with IFS</button>
+        <button type="button" class="secondary" id="clear" hidden>Clear display</button>
+      </div>
+      <p class="error" id="error" hidden></p>
+    </section>
 
-    const contentUrlInput = document.getElementById("contentUrl");
-    const errorMessage = document.getElementById("errorMessage");
-    const contextOutput = document.getElementById("context");
+    <section class="card" id="result" hidden>
+      <h2>Signed in</h2>
+      <p class="ok" id="resultNote"></p>
+      <dl id="facts"></dl>
+      <h2 style="margin-top:16px">Access token</h2>
+      <pre id="accessToken"></pre>
+      <details>
+        <summary>ID token claims</summary>
+        <pre id="claims"></pre>
+      </details>
+      <details>
+        <summary>UserInfo response</summary>
+        <pre id="userInfo"></pre>
+      </details>
+    </section>
+  </main>
 
-    function showView(view) {
-        configureView.classList.add("hidden");
-        contentView.classList.add("hidden");
-        browserView.classList.add("hidden");
+  <script>
+    // GitHub Pages for https://github.com/akshay-babar-invimatic/teams-page
+    // Pages source must be the repository root (or /docs only if you move this file).
+    const DEFAULT_REDIRECT = "https://akshay-babar-invimatic.github.io/teams-page/";
+    const STORE = "ifs-teams-tab";
 
-        view.classList.remove("hidden");
-    }
+    const issuerInput = document.querySelector("#issuer");
+    const clientIdInput = document.querySelector("#clientId");
+    const scopesInput = document.querySelector("#scopes");
+    const redirectInput = document.querySelector("#redirectUri");
+    const hostStatus = document.querySelector("#hostStatus");
+    const errorBox = document.querySelector("#error");
+    const resultCard = document.querySelector("#result");
+    const facts = document.querySelector("#facts");
 
-    // Check whether the Teams SDK is available.
-    if (!window.microsoftTeams || !window.microsoftTeams.app) {
-        showView(browserView);
+    let teamsReady = false;
+
+    redirectInput.value = DEFAULT_REDIRECT;
+    const saved = loadSettings();
+    if (saved.issuer) issuerInput.value = saved.issuer;
+    if (saved.clientId) clientIdInput.value = saved.clientId;
+    if (saved.scopes) scopesInput.value = saved.scopes;
+    if (saved.redirectUri) redirectInput.value = saved.redirectUri;
+
+    document.querySelector("#signIn").addEventListener("click", onSignIn);
+    document.querySelector("#clear").addEventListener("click", clearDisplay);
+
+    boot();
+
+    async function boot() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("code") || params.has("error")) {
+        await finishSignIn(params);
         return;
+      }
+      if (params.get("flow") === "start") {
+        await startInPopup(params);
+        return;
+      }
+      teamsReady = await initTeams();
+      hostStatus.textContent = teamsReady
+        ? "Running inside Teams. Sign-in opens a popup, because IFS cannot load inside the tab iframe."
+        : "Opened in a normal browser. Sign-in stays on this page. Put the same URL in a Teams tab to use the popup flow.";
     }
 
-    try {
-        // Initialize Teams SDK.
+    async function initTeams() {
+      if (!window.microsoftTeams || !microsoftTeams.app) return false;
+      try {
         await microsoftTeams.app.initialize();
-
-        // Get the current Teams context.
-        const context = await microsoftTeams.app.getContext();
-
-        console.log("Teams context:", context);
-
-        contextOutput.textContent = JSON.stringify(context, null, 2);
-
-        // Configuration mode: Teams is adding/configuring the tab.
-        if (context.page?.frameContext === "settings") {
-            showView(configureView);
-
-            // Enable Save only when a URL is entered.
-            microsoftTeams.pages.config.setValidityState(false);
-
-            contentUrlInput.addEventListener("input", () => {
-                const isValid = contentUrlInput.value.trim().length > 0;
-
-                microsoftTeams.pages.config.setValidityState(isValid);
-                errorMessage.textContent = "";
-            });
-
-            // Handle the Save action from Teams.
-            microsoftTeams.pages.config.registerOnSaveHandler(
-                async (saveEvent) => {
-                    try {
-                        const contentUrl = contentUrlInput.value.trim();
-
-                        if (!contentUrl) {
-                            throw new Error("Please enter a Content URL.");
-                        }
-
-                        await microsoftTeams.pages.config.setConfig({
-                            entityId: crypto.randomUUID(),
-                            contentUrl: contentUrl,
-                            websiteUrl: contentUrl,
-                            suggestedDisplayName: "Custom Website"
-                        });
-
-                        console.log("Teams tab configuration saved:", contentUrl);
-
-                        saveEvent.notifySuccess();
-                    } catch (error) {
-                        console.error("Failed to save tab configuration:", error);
-
-                        errorMessage.textContent =
-                            error.message || "Unable to save the configuration.";
-
-                        saveEvent.notifyFailure(errorMessage.textContent);
-                    }
-                }
-            );
-
-
-        } else {
-            // Normal tab content after Teams has saved the configuration.
-            showView(contentView);
-
-            console.log("Teams tab content context:", context);
-        }
-
-    } catch (error) {
-        console.error("Teams initialization failed:", error);
-        showView(browserView);
+        return true;
+      } catch {
+        return false;
+      }
     }
-})();
-</script>
+
+    function settingsFromForm() {
+      return {
+        issuer: issuerInput.value.trim().replace(/\/+$/, ""),
+        clientId: clientIdInput.value.trim(),
+        scopes: scopesInput.value.trim() || "openid microprofile-jwt",
+        redirectUri: redirectInput.value.trim(),
+      };
+    }
+
+    function saveSettings(settings) {
+      localStorage.setItem(STORE + ".settings", JSON.stringify(settings));
+    }
+
+    function loadSettings() {
+      try {
+        return JSON.parse(localStorage.getItem(STORE + ".settings") || "{}");
+      } catch {
+        return {};
+      }
+    }
+
+    async function onSignIn() {
+      hideError();
+      const settings = settingsFromForm();
+      const problem = validate(settings);
+      if (problem) {
+        showError(problem);
+        return;
+      }
+      saveSettings(settings);
+      document.querySelector("#signIn").disabled = true;
+      try {
+        if (teamsReady) {
+          // Teams tab pattern: our page opens in a popup, then that popup
+          // redirects to IFS. The popup URL must be on a domain listed in
+          // the Teams app manifest validDomains.
+          const start = new URL(settings.redirectUri);
+          start.searchParams.set("flow", "start");
+          start.searchParams.set("issuer", settings.issuer);
+          start.searchParams.set("client_id", settings.clientId);
+          start.searchParams.set("scope", settings.scopes);
+          const result = await microsoftTeams.authentication.authenticate({
+            url: start.toString(),
+            width: 600,
+            height: 640,
+          });
+          showSession(readHandoff(result));
+        } else {
+          await redirectToIfs(settings, false);
+        }
+      } catch (error) {
+        showError(authErrorText(error));
+        document.querySelector("#signIn").disabled = false;
+      }
+    }
+
+    async function startInPopup(params) {
+      const inPopup = await initTeams();
+      const settings = {
+        issuer: (params.get("issuer") || "").replace(/\/+$/, ""),
+        clientId: params.get("client_id") || "",
+        scopes: params.get("scope") || "openid microprofile-jwt",
+        redirectUri: DEFAULT_REDIRECT,
+      };
+      const savedRedirect = loadSettings().redirectUri;
+      if (savedRedirect) settings.redirectUri = savedRedirect;
+      try {
+        await redirectToIfs(settings, inPopup);
+      } catch (error) {
+        failPopup(error.message || "Could not start IFS sign-in.");
+      }
+    }
+
+    async function redirectToIfs(settings, inPopup) {
+      const problem = validate(settings);
+      if (problem) throw new Error(problem);
+      hostStatus.textContent = "Contacting the IFS login server…";
+      const discovery = await discover(settings.issuer);
+      const verifier = randomToken();
+      const challenge = await sha256Base64Url(verifier);
+      const state = randomToken();
+      const nonce = randomToken();
+      sessionStorage.setItem(STORE + ".flow", JSON.stringify({
+        ...settings,
+        tokenEndpoint: discovery.token_endpoint,
+        userInfoEndpoint: discovery.userinfo_endpoint || "",
+        verifier,
+        state,
+        nonce,
+        inPopup,
+      }));
+      const authorize = new URL(discovery.authorization_endpoint);
+      authorize.searchParams.set("client_id", settings.clientId);
+      authorize.searchParams.set("response_type", "code");
+      authorize.searchParams.set("scope", settings.scopes);
+      authorize.searchParams.set("redirect_uri", settings.redirectUri);
+      authorize.searchParams.set("state", state);
+      authorize.searchParams.set("nonce", nonce);
+      authorize.searchParams.set("code_challenge", challenge);
+      authorize.searchParams.set("code_challenge_method", "S256");
+      if (inPopup && window.microsoftTeams) {
+        try {
+          const context = await microsoftTeams.app.getContext();
+          const hint = context && context.user && context.user.loginHint;
+          if (hint) authorize.searchParams.set("login_hint", hint);
+        } catch {
+          // login_hint is only a convenience. Sign-in continues without it.
+        }
+      }
+      window.location.assign(authorize.toString());
+    }
+
+    async function finishSignIn(params) {
+      const raw = sessionStorage.getItem(STORE + ".flow");
+      sessionStorage.removeItem(STORE + ".flow");
+      const flow = raw ? JSON.parse(raw) : null;
+      const returnError = params.get("error");
+      if (!flow) {
+        showError("This sign-in callback has no matching attempt in this window. Start again from the button.");
+        teamsReady = await initTeams();
+        return;
+      }
+      if (returnError) {
+        const message = params.get("error_description") || returnError;
+        failPopup(message, flow.inPopup);
+        return;
+      }
+      if (params.get("state") !== flow.state) {
+        failPopup("State does not match. This callback was not for the sign-in that was started.", flow.inPopup);
+        return;
+      }
+      try {
+        hostStatus.textContent = "Exchanging the authorization code for a token…";
+        const token = await exchangeCode(flow, params.get("code"));
+        const session = describeSession(token, flow.nonce);
+        if (flow.userInfoEndpoint && token.access_token) {
+          session.userInfo = await readUserInfo(flow.userInfoEndpoint, token.access_token);
+        }
+        history.replaceState(null, "", flow.redirectUri);
+        if (flow.inPopup && window.microsoftTeams) {
+          handoffToTab(session);
+          return;
+        }
+        showSession(session);
+      } catch (error) {
+        failPopup(error.message || "Token request failed.", flow.inPopup);
+      }
+    }
+
+    async function discover(issuer) {
+      const response = await fetch(issuer + "/.well-known/openid-configuration");
+      if (!response.ok) {
+        throw new Error("IFS discovery failed (" + response.status + "). Check the issuer URL and that this site is allowed by the realm.");
+      }
+      const doc = await response.json();
+      if (!doc.authorization_endpoint || !doc.token_endpoint) {
+        throw new Error("The discovery document has no authorization or token endpoint.");
+      }
+      return doc;
+    }
+
+    async function exchangeCode(flow, code) {
+      const body = new URLSearchParams({
+        grant_type: "authorization_code",
+        code: code,
+        redirect_uri: flow.redirectUri,
+        client_id: flow.clientId,
+        code_verifier: flow.verifier,
+      });
+      const response = await fetch(flow.tokenEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error_description || payload.error || ("Token endpoint returned " + response.status));
+      }
+      return payload;
+    }
+
+    function describeSession(token, expectedNonce) {
+      const claims = token.id_token ? decodeJwt(token.id_token) : {};
+      if (token.id_token && claims.nonce && claims.nonce !== expectedNonce) {
+        throw new Error("ID token nonce does not match this sign-in attempt.");
+      }
+      const expiresAt = token.expires_in
+        ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString()
+        : "";
+      return {
+        username: claims.preferred_username || "",
+        subject: claims.sub || "",
+        sessionId: claims.sid || "",
+        sessionState: token.session_state || "",
+        expiresAt: expiresAt,
+        scope: token.scope || "",
+        accessToken: token.access_token || "",
+        claims: claims,
+        userInfo: null,
+      };
+    }
+
+    async function readUserInfo(url, accessToken) {
+      try {
+        const response = await fetch(url, { headers: { Authorization: "Bearer " + accessToken } });
+        const text = await response.text();
+        if (!response.ok) return "UserInfo returned " + response.status + "\n" + text;
+        return text;
+      } catch (error) {
+        return "UserInfo could not be read from this page (" + error.message + "). The token was still issued. The realm must allow this site as a web origin.";
+      }
+    }
+
+    function handoffToTab(session) {
+      const key = STORE + ".result." + randomToken();
+      const json = JSON.stringify(session);
+      try {
+        localStorage.setItem(key, json);
+      } catch {
+        // Storage partitioning can block this. The result string below is the backup.
+      }
+      try {
+        microsoftTeams.authentication.notifySuccess(json.length < 12000 ? json : key);
+      } catch (error) {
+        showSession(session);
+        showError("The token was issued, but Teams did not accept the return message (" + error.message + "). It is shown in this window.");
+      }
+    }
+
+    function readHandoff(result) {
+      if (!result) throw new Error("Teams returned an empty sign-in result.");
+      if (result.charAt(0) === "{") return JSON.parse(result);
+      const stored = localStorage.getItem(result);
+      localStorage.removeItem(result);
+      if (!stored) {
+        throw new Error("Teams closed the popup, but this tab could not read the token. Browser storage between the popup and the tab was blocked.");
+      }
+      return JSON.parse(stored);
+    }
+
+    function failPopup(message, inPopup) {
+      history.replaceState(null, "", redirectInput.value || DEFAULT_REDIRECT);
+      if (inPopup && window.microsoftTeams) {
+        try {
+          microsoftTeams.authentication.notifyFailure(message);
+          return;
+        } catch {
+          // Fall through and show the message in this window.
+        }
+      }
+      showError(message);
+      document.querySelector("#signIn").disabled = false;
+    }
+
+    function showSession(session) {
+      document.querySelector("#signIn").disabled = false;
+      document.querySelector("#clear").hidden = false;
+      resultCard.hidden = false;
+      const sessionText = session.sessionId
+        ? session.sessionId
+        : "The ID token has no sid claim. session_state is the other IFS login-session value.";
+      document.querySelector("#resultNote").textContent =
+        "This is the IFS login session from the ID token. It is not the IFS Intelligence harness session id.";
+      facts.replaceChildren(
+        fact("Username", session.username || "—"),
+        fact("Subject", session.subject || "—"),
+        fact("Session id (sid)", sessionText),
+        fact("session_state", session.sessionState || "—"),
+        fact("Access token expires", session.expiresAt || "—"),
+        fact("Scopes", session.scope || "—")
+      );
+      document.querySelector("#accessToken").textContent = session.accessToken || "No access token was returned.";
+      document.querySelector("#claims").textContent = JSON.stringify(session.claims, null, 2);
+      document.querySelector("#userInfo").textContent = session.userInfo || "No UserInfo call was made.";
+    }
+
+    function fact(name, value) {
+      const row = document.createElement("div");
+      const term = document.createElement("dt");
+      const detail = document.createElement("dd");
+      term.textContent = name;
+      detail.textContent = value;
+      row.append(term, detail);
+      return row;
+    }
+
+    function clearDisplay() {
+      resultCard.hidden = true;
+      document.querySelector("#clear").hidden = true;
+      hideError();
+    }
+
+    function validate(settings) {
+      if (!settings.issuer || !/^https:\/\//.test(settings.issuer)) return "Issuer must be an https URL, with no path past the realm.";
+      if (!settings.clientId) return "Client ID is required.";
+      if (!settings.redirectUri || !/^https:\/\/.+/.test(settings.redirectUri)) return "Redirect URL must be the https GitHub Pages address.";
+      return "";
+    }
+
+    function showError(message) {
+      errorBox.hidden = false;
+      errorBox.textContent = message;
+    }
+
+    function hideError() {
+      errorBox.hidden = true;
+      errorBox.textContent = "";
+    }
+
+    function authErrorText(error) {
+      const reason = (error && (error.message || String(error))) || "Sign-in failed.";
+      if (reason === "CancelledByUser") return "Sign-in was cancelled, or the popup lost its connection to the tab.";
+      if (reason === "FailedToOpenWindow") return "The sign-in popup was blocked. Allow popups for this site and try again.";
+      return reason;
+    }
+
+    function randomToken() {
+      const bytes = new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      return base64Url(bytes);
+    }
+
+    async function sha256Base64Url(value) {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+      return base64Url(new Uint8Array(digest));
+    }
+
+    function base64Url(bytes) {
+      let text = "";
+      for (const byte of bytes) text += String.fromCharCode(byte);
+      return btoa(text).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+
+    function decodeJwt(token) {
+      const part = token.split(".")[1];
+      if (!part) return {};
+      const padded = part.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((part.length + 3) % 4);
+      return JSON.parse(atob(padded));
+    }
+  </script>
 </body>
 </html>
