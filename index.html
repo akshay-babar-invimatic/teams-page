@@ -78,34 +78,23 @@
     <div class="card">
         <section id="configureView" class="hidden">
             <h2>Configure IFS tab</h2>
-            <p>Enter the IFS public client and realm URL. Scope and redirect URL are fixed.</p>
+            <p>Sign in here. Teams Save stays off until this sign-in succeeds.</p>
             <form id="configForm">
                 <label for="configClientId">Client ID</label>
                 <input id="configClientId" type="text" autocomplete="off" placeholder="IFSLoops_Agent" required />
                 <label for="configIssuer">IFS URL</label>
                 <input id="configIssuer" type="url" autocomplete="off" placeholder="https://your-ifs-host/auth/realms/your-realm" required />
+                <label for="configClientSecret">Client secret</label>
+                <input id="configClientSecret" type="password" autocomplete="off" placeholder="Required for a confidential IFS client" />
+                <label for="configProxy">Token proxy URL</label>
+                <input id="configProxy" type="url" autocomplete="off" placeholder="https://xxxx-8787.inc1.devtunnels.ms" />
                 <p>Scope: <span id="configScope"></span></p>
                 <p>Redirect URL: <span id="configRedirect"></span></p>
+                <button id="signInButton" type="button">Sign in with IFS</button>
+                <p id="authStatus"></p>
                 <p id="errorMessage" class="error"></p>
                 <p id="configStatus"></p>
             </form>
-        </section>
-
-        <section id="contentView" class="hidden">
-            <h2>IFS Cloud test</h2>
-            <p>Teams is showing the content page. Sign-in opens a popup because IFS cannot load inside the tab.</p>
-            <label for="contentClientId">Client ID</label>
-            <input id="contentClientId" type="text" autocomplete="off" placeholder="IFSLoops_Agent" required />
-            <label for="contentIssuer">IFS URL</label>
-            <input id="contentIssuer" type="url" autocomplete="off" placeholder="https://your-ifs-host/auth/realms/your-realm" required />
-            <label for="contentClientSecret">Client secret</label>
-            <input id="contentClientSecret" type="password" autocomplete="off" placeholder="Required for a confidential IFS client" />
-            <label for="contentProxy">Token proxy URL</label>
-            <input id="contentProxy" type="url" autocomplete="off" placeholder="https://xxxx-8787.inc1.devtunnels.ms" />
-            <p>Scope: <span id="contentScope"></span></p>
-            <p>Redirect URL: <span id="contentRedirect"></span></p>
-            <button id="signInButton" type="button">Sign in with IFS</button>
-            <p id="authStatus"></p>
             <div id="renderedContent" class="hidden">
                 <h3>Auth code</h3>
                 <pre id="authCode"></pre>
@@ -116,8 +105,13 @@
                 <h3>Session</h3>
                 <pre id="sessionInfo"></pre>
             </div>
-            <h3>Teams context</h3>
-            <pre id="context">Loading Teams context...</pre>
+            <h3>Log</h3>
+            <pre id="screenLog"></pre>
+        </section>
+
+        <section id="contentView" class="hidden">
+            <h2 id="welcomeTitle">Welcome</h2>
+            <p id="welcomeText">You are signed in.</p>
         </section>
 
         <section id="browserView" class="hidden">
@@ -126,13 +120,10 @@
         </section>
 
         <p id="popupStatus" class="hidden"></p>
-        <h3>Log</h3>
-        <pre id="screenLog"></pre>
     </div>
 </div>
 
 <script>
-    // Fixed for this test page. The user types only the client id and IFS URL.
     const SCOPES = "openid microprofile-jwt";
 
     const configureView = document.getElementById("configureView");
@@ -140,20 +131,19 @@
     const browserView = document.getElementById("browserView");
     const configClientIdInput = document.getElementById("configClientId");
     const configIssuerInput = document.getElementById("configIssuer");
-    const contentClientIdInput = document.getElementById("contentClientId");
-    const contentIssuerInput = document.getElementById("contentIssuer");
-    const contentClientSecretInput = document.getElementById("contentClientSecret");
-    const contentProxyInput = document.getElementById("contentProxy");
-    // Held in memory for the token POST only. Never written to storage or the authorize URL.
-    let pendingFlow = null;
+    const configClientSecretInput = document.getElementById("configClientSecret");
+    const configProxyInput = document.getElementById("configProxy");
     const errorMessage = document.getElementById("errorMessage");
     const configStatus = document.getElementById("configStatus");
-    const contextOutput = document.getElementById("context");
     const signInButton = document.getElementById("signInButton");
     const authStatus = document.getElementById("authStatus");
     const renderedContent = document.getElementById("renderedContent");
     const popupStatus = document.getElementById("popupStatus");
     const screenLog = document.getElementById("screenLog");
+    // Held in memory for the token POST only. Never written to storage or the authorize URL.
+    let pendingFlow = null;
+    let signedIn = false;
+    let signedInUser = "";
 
     function pageUrl() {
         return window.location.origin + window.location.pathname;
@@ -180,12 +170,12 @@
     function log(message, extra) {
         const line = extra === undefined ? message : message + " " + extra;
         console.log(message, extra === undefined ? "" : extra);
-        screenLog.textContent += line + "\n";
+        if (screenLog) screenLog.textContent += line + "\n";
     }
 
     function fail(message, error) {
         console.error(message, error || "");
-        screenLog.textContent += "FAIL: " + message + "\n";
+        if (screenLog) screenLog.textContent += "FAIL: " + message + "\n";
     }
 
     function showView(view) {
@@ -193,6 +183,12 @@
         contentView.classList.add("hidden");
         browserView.classList.add("hidden");
         view.classList.remove("hidden");
+    }
+
+    function allowSave(ok) {
+        signedIn = ok;
+        if (!ok) signedInUser = "";
+        microsoftTeams.pages.config.setValidityState(ok);
     }
 
     function randomString() {
@@ -291,7 +287,7 @@
             return;
         }
 
-        log("Authorization code received. Returning it to the tab for the token request.");
+        log("Authorization code received. Returning it to the configuration page.");
         setPopupStatus("Sign-in succeeded at IFS. Returning to the tab.", true);
         microsoftTeams.authentication.notifySuccess(JSON.stringify({ code: code, state: state }));
     }
@@ -313,7 +309,6 @@
             code_verifier: flow.verifier,
             scope: SCOPES
         });
-        // Same placement as auth-broker: client id and secret in the form body.
         if (flow.secret) body.set("client_secret", flow.secret);
         log("Requesting access token for client:", flow.clientId);
         log("Client secret included:", flow.secret ? "yes" : "no");
@@ -353,26 +348,44 @@
         };
     }
 
-    function showTab(context) {
+    function showWelcome() {
         showView(contentView);
-        contextOutput.textContent = JSON.stringify(context, null, 2);
-        const incoming = new URLSearchParams(window.location.search);
-        if (incoming.get("client_id")) contentClientIdInput.value = incoming.get("client_id");
-        if (incoming.get("issuer")) contentIssuerInput.value = incoming.get("issuer");
-        document.getElementById("contentScope").textContent = SCOPES;
-        document.getElementById("contentRedirect").textContent = pageUrl();
-        log("Content page. frameContext:", context.page && context.page.frameContext);
+        const name = new URLSearchParams(window.location.search).get("user");
+        document.getElementById("welcomeTitle").textContent = name ? "Welcome, " + name : "Welcome";
+        document.getElementById("welcomeText").textContent = "Your Teams tab is ready.";
+    }
+
+    function showConfig() {
+        showView(configureView);
+        document.getElementById("configScope").textContent = SCOPES;
+        document.getElementById("configRedirect").textContent = pageUrl();
+        log("Configuration page.");
         log("Scope:", SCOPES);
-        log("Redirect URL:", pageUrl());
-        authStatus.textContent = "Not signed in yet.";
+        log("Redirect URL to register:", pageUrl());
+        allowSave(false);
+        authStatus.textContent = "Sign in to continue. Save stays off until sign-in succeeds.";
+
+        const invalidate = () => {
+            if (!signedIn) return;
+            allowSave(false);
+            authStatus.className = "";
+            authStatus.textContent = "The fields changed. Sign in again before saving.";
+            configStatus.textContent = "";
+        };
+        configClientIdInput.addEventListener("input", invalidate);
+        configIssuerInput.addEventListener("input", invalidate);
+        configClientSecretInput.addEventListener("input", invalidate);
+        configProxyInput.addEventListener("input", invalidate);
 
         signInButton.addEventListener("click", async () => {
             signInButton.disabled = true;
+            allowSave(false);
+            errorMessage.textContent = "";
             authStatus.className = "";
             authStatus.textContent = "Signing in...";
             let client;
             try {
-                client = readClient(contentClientIdInput.value, contentIssuerInput.value);
+                client = readClient(configClientIdInput.value, configIssuerInput.value);
             } catch (error) {
                 const message = error.message || String(error);
                 fail(message, error);
@@ -392,8 +405,8 @@
                 clientId: client.clientId,
                 issuer: client.issuer,
                 token: client.token,
-                secret: contentClientSecretInput.value,
-                proxy: contentProxyInput.value.trim().replace(/\/+$/, "")
+                secret: configClientSecretInput.value,
+                proxy: configProxyInput.value.trim().replace(/\/+$/, "")
             };
             log("Opening Teams auth popup for client:", client.clientId);
 
@@ -415,14 +428,19 @@
                 }
                 const tokens = await exchangeCode(pendingFlow, result.code);
                 pendingFlow = null;
+                signedInUser = tokens.username || tokens.subject || "";
+                allowSave(true);
                 authStatus.className = "ok";
-                authStatus.textContent = "Sign-in successful.";
+                authStatus.textContent = "Sign-in successful. You can save now.";
+                configStatus.className = "ok";
+                configStatus.textContent = "Save is enabled.";
                 log("Sign-in successful.");
                 console.log("IFS token result:", tokens);
                 showTokens(tokens);
             } catch (error) {
                 const message = error && error.message ? error.message : String(error);
                 fail("Sign-in failed. " + message, error);
+                allowSave(false);
                 authStatus.className = "error";
                 authStatus.textContent = "Sign-in failed. " + message;
             } finally {
@@ -430,36 +448,15 @@
                 signInButton.disabled = false;
             }
         });
-    }
-
-    function configIsValid() {
-        return configClientIdInput.value.trim().length > 0 && /^https:\/\/.+/i.test(configIssuerInput.value.trim());
-    }
-
-    function showConfig() {
-        showView(configureView);
-        const incoming = new URLSearchParams(window.location.search);
-        if (incoming.get("client_id")) configClientIdInput.value = incoming.get("client_id");
-        if (incoming.get("issuer")) configIssuerInput.value = incoming.get("issuer");
-        document.getElementById("configScope").textContent = SCOPES;
-        document.getElementById("configRedirect").textContent = pageUrl();
-        log("Configuration page. Scope:", SCOPES);
-        log("Redirect URL to register:", pageUrl());
-        microsoftTeams.pages.config.setValidityState(configIsValid());
-
-        const onInput = () => {
-            microsoftTeams.pages.config.setValidityState(configIsValid());
-            errorMessage.textContent = "";
-        };
-        configClientIdInput.addEventListener("input", onInput);
-        configIssuerInput.addEventListener("input", onInput);
 
         microsoftTeams.pages.config.registerOnSaveHandler(async (saveEvent) => {
             try {
+                if (!signedIn) {
+                    throw new Error("Sign in before saving.");
+                }
                 const client = readClient(configClientIdInput.value, configIssuerInput.value);
                 const contentUrl = new URL(pageUrl());
-                contentUrl.searchParams.set("client_id", client.clientId);
-                contentUrl.searchParams.set("issuer", client.issuer);
+                if (signedInUser) contentUrl.searchParams.set("user", signedInUser);
 
                 await microsoftTeams.pages.config.setConfig({
                     entityId: crypto.randomUUID(),
@@ -512,8 +509,10 @@
             return;
         }
 
-        showTab(context);
+        showWelcome();
     }
+
+    document.getElementById("configForm").addEventListener("submit", (event) => event.preventDefault());
 
     initialize().catch(error => {
         const message = error && error.message ? error.message : String(error);
